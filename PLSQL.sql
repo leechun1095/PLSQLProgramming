@@ -314,3 +314,99 @@ BEGIN
   "V_NUM" := 20 ;
   DBMS_OUTPUT.PUT_LINE("v_num") ;
 END ;
+
+--===============================================================
+-- /* Example 7-3 변수 선언 시 초기값 지정 */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 변수 선언 시에 제약조건과 초기 값을 지정할 수 있다.
+DECLARE
+  v_name VARCHAR2(10) NOT NULL := 'SMITH' ;
+BEGIN
+  DBMS_OUTPUT.PUT_LINE(v_name) ;
+END ;
+
+--===============================================================
+-- /* Example 7-4 NOT NULL 변수에 초기값을 지정하지 않으면 오류 발생 */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM NOT NULL 제약조건을 가지는 변수에 초기값 미지정 시 오류 발생
+DECLARE
+  v_name VARCHAR2(10) NOT NULL ;
+BEGIN
+  DBMS_OUTPUT.PUT_LINE(v_name) ;
+END ;
+
+--===============================================================
+-- /* Example 7-5 변수의 최대 크기를 초과하는 값을 할당 시 오류  */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 문자열 변수에 선언된 크기를 초과하는 문자열을 할당하면 오류 발생
+DECLARE
+  v_vc VARCHAR2(2) ; -- 최대 2바이트
+BEGIN
+  v_vc := 'ABC' ; -- 최대 크기가 2바이트인 변수에 크기가 3바이트인 문자열을 할당
+END ;
+
+--===============================================================
+-- /* Example 7-6 상수는 값을 변경할 수 없다  */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 상수는 변경할 수 없는 값이다.
+REM 상수를 변경하면 오류가 발생한다.
+DECLARE
+  c_pi CONSTANT NUMBER := 3.14 ; -- 상수 선언
+BEGIN
+  c_pi := 3.1415927 ;            -- 상수를 변경하면 오류 발생
+END ;
+
+--===============================================================
+-- /* Example 7-7 리터럴의 사용 */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 리터럴을 사용하는 프로그램 예제.
+REM 리터럴 없는 프로그래밍은 거의 불가능하다.
+DECLARE
+  v_sum NUMBER := 0 ;
+BEGIN
+  FOR i IN 1..10
+  LOOP
+    v_sum := v_sum + i ;
+  END LOOP ;
+  DBMS_OUTPUT.PUT_LINE('Σ(1~10) = '||v_sum) ;
+END ;
+
+--===============================================================
+-- /* Example 7-8 서로 다른 타입의 NULL은 호환되지 않는다.  */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM NULL 리터럴도 데이터 타입을 가진다.
+REM 데이터 타입이 다른 NULL 간의 연산은 컴파일 오류를 발생시킨다.
+DECLARE
+  v_num  NUMBER  := NULL ; -- 수치형 리터럴 NULL
+  v_bool BOOLEAN := NULL ; -- BOOLEAN형 리터럴 NULL
+BEGIN
+  -- NUMBER형 리터럴 NULL과 BOOLEAN형 리터럴 NULL은 서로 호환되지 않는다.
+  -- 따라서 다음 IF 문은 컴파일 오류를 일으킨다.
+  IF v_num = v_bool THEN
+    DBMS_OUTPUT.PUT_LINE('NULL NUMBER = NULL BOOLEAN') ;
+  END IF ;
+END ;
