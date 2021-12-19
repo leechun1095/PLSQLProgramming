@@ -19,7 +19,7 @@ BEGIN
     INTO v_cnt
 	FROM emp
    WHERE deptno = a_deptno;
-   
+
   RETURN v_cnt;
 
 EXCEPTION WHEN OTHERS THEN
@@ -36,7 +36,7 @@ SELECT deptno
 	 , loc
 	 , get_dept_employee_count(deptno) 사원수
   FROM dept;
-  
+
 
 --===============================================================
 -- /* Example 1-8 익명 PL/SQL문을 사용한 저장 함수 실행 */
@@ -62,7 +62,7 @@ CREATE OR REPLACE PROCEDURE register_employee(
 )
 IS
 	c_default_deptno CONSTANT NUMBER := 20;	-- DEFAULT 부서 코드
-	
+
 	v_cnt		NUMBER;		-- 건수
 BEGIN
 	-- 주어진 사번의 존재 여부 확인
@@ -70,9 +70,9 @@ BEGIN
 	  INTO v_cnt
 	  FROM emp
 	 WHERE empno = a_empno;
-	 
+
 	IF v_cnt > 0 THEN
-	  UPDATE emp 
+	  UPDATE emp
 		 SET ename = a_ename,
 			 job   = a_job
 	   WHERE ename = a_ename;
@@ -81,7 +81,7 @@ BEGIN
 	ELSE
 	  INSERT INTO emp(empno, ename, job, deptno)
 	  VALUES (a_empno, a_ename, a_job, c_default_deptno);
-	  
+
 	  a_msg_out := '신입사원 "'  || a_ename || '"이(가) 등록되었습니다.' ;
 	END IF;
 	a_rslt_out := TRUE;
@@ -154,7 +154,7 @@ DECLARE
 BEGIN
   DECLARE
     V_NUM NUMBER;
-  BEGIN 
+  BEGIN
     V_NUM := 4; -- 5번 줄에 선언된 V_NUM을 참조
   END;
   V_NUM := V_NUM + 1; -- 2번 줄에 선언된 V_NUM을 참조
@@ -199,18 +199,18 @@ CREATE OR REPLACE PROCEDURE check_salary(a_empno NUMBER)
 IS
   v_name VARCHAR2(10) ;
   v_num  NUMBER ;
-  
+
   FUNCTION check_bonus(a_empno NUMBER) RETURN BOOLEAN
-  IS 
+  IS
     v_num NUMBER ;
   BEGIN
-    SELECT comm 
+    SELECT comm
       INTO v_num
       FROM emp
      WHERE empno = a_empno ;
-     
+
     DBMS_OUTPUT.PUT_LINE(v_name||'의 커미션: '||v_num) ;
-    
+
     -- 커미션은 급여 금액을 초과하지 못한다.
     IF check_salary.v_num < v_num THEN
       RETURN FALSE ;
@@ -218,13 +218,13 @@ IS
       RETURN TRUE ;
     END IF ;
   END ;
-  
+
 BEGIN
   SELECT ename, sal
     INTO v_name, v_num
     FROM emp
    WHERE empno = a_empno ;
-   
+
   IF NOT check_bonus(a_empno) THEN
     DBMS_OUTPUT.PUT_LINE('사원 '||v_name||'의 커미션이 과도합니다') ;
   ELSE
@@ -250,9 +250,9 @@ REM 문자형 데이터 타입 선언 시 "(길이 CHAR)" 형식 사용
 REM 바이트 단위가 아닌 글자 수 단위의 길이로 선언되므로
 REM 데이터베이스 문자집합에 따라서 최대 길이가 달라진다.
 DECLARE
-  v_charset  VARCHAR2(16    ) ; 
-  v_name1    VARCHAR2(8 CHAR) ; 
-  v_name2    VARCHAR2(8     ) ; 
+  v_charset  VARCHAR2(16    ) ;
+  v_name1    VARCHAR2(8 CHAR) ;
+  v_name2    VARCHAR2(8     ) ;
 BEGIN
   -- Fixed View에서 데이터베이스 문자 집합을 조회하여 출력한다.
   SELECT VALUE INTO v_charset FROM v$nls_parameters WHERE parameter = 'NLS_CHARACTERSET' ;
@@ -260,7 +260,7 @@ BEGIN
 
   -- DBMS_OUTPUT.PUT_LINE('') ; -- 탭 문자(빈 줄 출력용)
   DBMS_OUTPUT.PUT_LINE(CHR(9)) ; -- 탭 문자(빈 줄 출력용)
-  
+
   -- 문자 단위
   DBMS_OUTPUT.PUT_LINE('v_name1 VARCHAR2(8 CHAR)') ;
   DBMS_OUTPUT.PUT_LINE('========================') ;
@@ -270,7 +270,7 @@ BEGIN
   DBMS_OUTPUT.PUT_LINE(RPAD(v_name1,9) ||' : ' || lengthb(v_name1) || '바이트') ;
 
   DBMS_OUTPUT.PUT_LINE(CHR(9)) ; -- 탭 문자(빈 줄 출력용)
-  
+
   -- 바이트 단위
   DBMS_OUTPUT.PUT_LINE('v_name2 VARCHAR2(8)') ;
   DBMS_OUTPUT.PUT_LINE('====================') ;
@@ -280,26 +280,37 @@ BEGIN
   DBMS_OUTPUT.PUT_LINE(RPAD(v_name2,9) ||' : ' || lengthb(v_name2) || '바이트') ;
 END;
 
+--===============================================================
+-- /* Example 7-1 변수명은 대소문자를 구별하지 않는다. */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
 
+REM 식별자는 대소문자를 구별하지 않으므로
+REM 소문자 변수명 v_num과 대문자 변수명 V_NUM은 동일한 변수임.
+REM 변수 중복 선언으로 인한 컴파일 오류 발생.
+DECLARE
+  v_num NUMBER ;
+  V_NUM NUMBER ; -- 대소문자를 구별하지 않으므로, 위의 v_num과 중복되는 선언이다.
+BEGIN
+  v_num := 10 ;
+  V_NUM := 20 ;
+  DBMS_OUTPUT.PUT_LINE(v_num) ;
+END ;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+--===============================================================
+-- /* Example 7-2 변수명에 큰따옴표를 사용하면 대소문자가 구별된다. */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+REM 식별자를 큰따옴표로 감싸면 대소문자를 구별한다.
+DECLARE
+  "v_num" NUMBER ;
+  "V_NUM" NUMBER ; -- 대소문자를 구별하므로, 위의 "v_num"과는 다른 선언이다.
+BEGIN
+  "v_num" := 10 ;
+  "V_NUM" := 20 ;
+  DBMS_OUTPUT.PUT_LINE("v_num") ;
+END ;
