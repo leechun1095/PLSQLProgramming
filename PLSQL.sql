@@ -410,3 +410,223 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('NULL NUMBER = NULL BOOLEAN') ;
   END IF ;
 END ;
+
+--===============================================================
+-- /* Example 7-9 큰 따옴표와 작은 따옴표의 차이.SQL  */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 문자형 리터럴은 작은 따옴표를 사용한다.
+REM 큰 따옴표를 사용하면 문자형 리터럴이 아니라 식별자이다.
+DECLARE
+  c_name CONSTANT STRING(10) := 'Mr. Smith' ;
+  "Mr. Scott" STRING(10) ;
+BEGIN
+  "Mr. Scott" := c_name ;
+  DBMS_OUTPUT.PUT_LINE('이름='||"Mr. Scott") ;
+END ;
+
+--===============================================================
+-- /* Example 7-10 줄 바꿈을 포함하는 문자형 리터럴.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 작은 따옴표를 사용한 문자형 리터럴 선언 예제.
+REM 리터럴은 줄바꿈을 포함할 수도 있다.
+DECLARE
+  v_str VARCHAR2(1000) ;
+BEGIN
+  -- 줄바꿈을 포함하는 문자형 리터럴
+  v_str := '옛날에 옛날에 어느 깊은 산 속에
+            할아버지와 할머니가 살고 있었어요' ;
+  DBMS_OUTPUT.PUT_LINE(v_str) ;
+END ;
+
+--===============================================================
+-- /* Example 7-11 프리픽스 Q를 사용하지 않는 문자형 리터럴.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 프리픽스 Q를 사용하지 않을 경우 문자열 중간의 작은따옴표는
+REM 모두 겹따옴표로 변경해야 하므로 어려움이 있다.
+DECLARE
+  v_SQL VARCHAR2(1000) ;
+BEGIN
+  v_SQL := 'SELECT EMPNO, ENAME
+              FROM EMP
+             WHERE ENAME IN (''SMITH'', ''ALLEN'', ''WARD'', ''JONES'', ''MARTIN'')' ;
+  DBMS_OUTPUT.PUT_LINE(v_SQL) ;
+END ;
+
+--===============================================================
+-- /* Example 7-12 프리픽스 Q를 사용한 문자형 리터럴.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 프리픽스 Q를 사용하면 경우 문자열 중간의 작은따옴표를
+REM 겹따옴표로 변경할 필요가 없다.
+DECLARE
+  v_SQL VARCHAR2(1000) ;
+BEGIN
+  v_SQL := Q'[SELECT EMPNO, ENAME
+                FROM EMP
+               WHERE ENAME IN ('SMITH', 'ALLEN', 'WARD', 'JONES', 'MARTIN')]' ;
+  DBMS_OUTPUT.PUT_LINE(v_SQL) ;
+END ;
+
+--===============================================================
+-- /* Example 7-13 프리픽스 Q를 사용한 문자형 리터럴의 구분자.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 프리픽스 Q를 사용한 다음 문자열 리터럴의 예는
+REM 모두 올바른 사용이며 모두 동일한 값이다.
+/*
+BEGIN
+  DBMS_OUTPUT.PUT_LINE(Q'[Scott's cat]');
+  DBMS_OUTPUT.PUT_LINE(Q'{Scott's cat}');
+  DBMS_OUTPUT.PUT_LINE(Q'<Scott's cat>');
+  DBMS_OUTPUT.PUT_LINE(Q'(Scott's cat)');
+  DBMS_OUTPUT.PUT_LINE(Q'!Scott's cat!');
+  DBMS_OUTPUT.PUT_LINE(Q'#Scott's cat#');
+  DBMS_OUTPUT.PUT_LINE(Q'aScott's cata');
+  DBMS_OUTPUT.PUT_LINE(Q'SScott's catS');
+  DBMS_OUTPUT.PUT_LINE(Q'가Scott's cat가');
+END ;
+*/
+
+--===============================================================
+-- /* Example 7-14 수치형 리터럴.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 수치형 리터럴 예제
+REM 부동 소수점형은 NUMBER 형에 비해 속도는 빠르나
+REM 유효 숫자의 수가 작아 정확도가 낮다.
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('*:'||3.1415926535897932384626433832795028842) ;
+  DBMS_OUTPUT.PUT_LINE('F:'||3.1415926535897932384626433832795028842F) ;
+  DBMS_OUTPUT.PUT_LINE('D:'||3.1415926535897932384626433832795028842D) ;
+END ;
+
+--===============================================================
+-- /* Example 7-15 부동 소수점형 리터럴의 계산 결과는 정확하지 않을 수 있다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 부동 소수점형 리터럴은 값이 정확하지 않을 수 있다.
+REM 동일한 상수 9.95이지만 부동소숫점형을 사용하면
+REM 정확한 값을 가지지 못한다.
+REM 따라서 부동소수점형은 금융 계산에 사용할 수 없으며,
+REM 금융 계산에는 NUMBER 형을 사용해야 한다.
+DECLARE
+  v_num NUMBER ;
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('NUMBER                : '||9.95) ;
+  DBMS_OUTPUT.PUT_LINE('부동 소수점           : '||9.95F) ;
+  DBMS_OUTPUT.PUT_LINE('TO_CHAR(9.95 ,''99.0'') :'||TO_CHAR(9.95 ,'99.0')) ;
+  DBMS_OUTPUT.PUT_LINE('TO_CHAR(9.95F,''99.0'') :'||TO_CHAR(9.95F,'99.0')) ;
+  DBMS_OUTPUT.PUT_LINE('ROUND(9.95 ,1)        : '||ROUND(9.95 ,1)) ; --ROUND(숫자, 1) -> 소수점 2번째 자리에서 반올림(=소수점 첫번째 자리까지 표현하겠다는 의미)
+  DBMS_OUTPUT.PUT_LINE('ROUND(9.95F,1)        : '||ROUND(9.95F,1)) ;
+
+  v_num := 9.95F ; -- 부동 소수점형 리터럴을 NUMBER형 변수에 바로 할당해도 값이 정확하지 않다.
+  DBMS_OUTPUT.PUT_LINE('부동 소수점 변수      : '||v_num) ;
+END ;
+
+--===============================================================
+-- /* Example 7-16 날짜형 리터럴.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 다양한 날짜형 리터럴 예제
+DECLARE
+  v_dt          DATE ;
+  v_ts          TIMESTAMP ;
+  v_tstz        TIMESTAMP WITH TIME ZONE ;
+  v_intervalY2M INTERVAL YEAR    TO MONTH ; -- 기본은 YEAR(2)
+  v_intervalY3M INTERVAL YEAR(3) TO MONTH ;
+  v_intervalDS  INTERVAL DAY TO SECOND(9) ;
+BEGIN
+  -- 날짜형 리터럴
+  v_dt := TO_DATE('2013-01-01', 'YYYY-MM-DD') ;
+	DBMS_OUTPUT.PUT_LINE(v_dt);
+  v_dt := DATE'2013-01-01' ;
+
+  -- 일시형 리터럴
+  v_dt := TO_DATE('2013-01-01 12:00:00', 'YYYY-MM-DD HH24:MI:SS') ;
+  v_dt := TIMESTAMP'2013-01-01 12:00:00' ;
+
+  -- TIMESTAMP형 리터럴
+  v_ts := TO_TIMESTAMP('2013-01-01 12:00:00.123', 'YYYY-MM-DD HH24:MI:SS.FF') ;
+  v_ts := TIMESTAMP'2013-01-01 12:00:00.123' ;
+  v_ts := TO_TIMESTAMP_TZ('2013-01-01 12:00:00 +02:00', 'YYYY-MM-DD HH24:MI:SS TZH:TZM') ;
+
+  -- TIMESTAMP WITH TIME ZONE형 리터럴
+  v_ts := TIMESTAMP'2013-01-01 12:00:00 +02:00' ;
+
+  -- INTERVAL YEAR TO MONTH형 리터럴
+  v_intervalY3M := INTERVAL '123-4' YEAR TO MONTH ; -- 123년 4개월
+  v_intervalY3M := INTERVAL '123' YEAR ;            -- 123년
+  v_intervalY3M := INTERVAL '50' MONTH ;            -- 50개월(4년 2개월)
+  -- v_intervalY2M := INTERVAL '123' YEAR ; -- ORA-01873: 간격의 선행 정밀도가 너무 작습니다
+
+  -- INTERVAL DAY TO SECOND형 리터럴
+  v_intervalDS := INTERVAL '4 5:12:10.222' DAY TO SECOND ;
+END ;
+
+--===============================================================
+-- /* Example 8-1 BOOLEAN 값을 출력하는 함수 print_boolean.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+CREATE OR REPLACE PROCEDURE print_boolean(v_msg VARCHAR2, v_bool BOOLEAN) IS
+BEGIN
+  IF v_bool IS NULL THEN
+    dbms_output.put_line(v_msg || ' : NULL') ;
+  ELSIF v_bool = TRUE THEN
+    dbms_output.put_line(v_msg || ' : TRUE') ;
+  ELSE
+    dbms_output.put_line(v_msg || ' : FALSE') ;
+  END IF ;
+END;
+
+--===============================================================
+-- /* Example 8-2 print_boolean을 사용하여 BOOLEAN식의 결과 출력.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 표 8 4의 회색 부분의 결과 확인
+DECLARE
+	v_TRUE	BOOLEAN := TRUE;
+	v_FALSE BOOLEAN := FALSE;
+	v_NULL	BOOLEAN := NULL;
+BEGIN
+	print_boolean('TRUE	 AND NULL', v_TRUE AND v_NULL);
+	print_boolean('TRUE	 OR	 NULL', v_TRUE AND v_NULL);
+	print_boolean('FALSE AND NULL', v_TRUE AND v_NULL);
+	print_boolean('FALSE OR  NULL ', v_FALSE OR  v_NULL);
+	print_boolean('NULL  AND TRUE ', v_NULL  AND v_TRUE);
+	print_boolean('NULL  OR  TRUE ', v_NULL  OR  v_TRUE);
+	print_boolean('NULL  AND FALSE', v_NULL  AND v_FALSE);
+	print_boolean('NULL  OR  FALSE', v_NULL  OR  v_FALSE);
+END;
