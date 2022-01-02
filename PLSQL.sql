@@ -630,3 +630,289 @@ BEGIN
 	print_boolean('NULL  AND FALSE', v_NULL  AND v_FALSE);
 	print_boolean('NULL  OR  FALSE', v_NULL  OR  v_FALSE);
 END;
+
+--===============================================================
+-- /* Example 8-3 Short-Circuit Evaluation과 부작용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM Short-Circuit Evaluation의 부작용으로
+REM 올바르지 못한 연산을 사전에 발견하지 못할 수 있다.
+DECLARE
+  x NUMBER := 1 ;
+  y NUMBER := 2 ;
+  z NUMBER := 0 ;
+BEGIN
+  -- "TRUE or ?"이므로 "y / z = 0"이 평가되지 않아서 오류가 발생하지 않음
+  IF x = 1 OR y / z = 0 THEN
+    DBMS_OUTPUT.PUT_LINE('x = 0 OR y / z = 0') ;
+  END IF ;
+
+  -- 이번에는 "FALSE or ?"이므로 "y / z = 0"이 평가되어 "ORA-01476: 제수가 0 입니다"가 발생
+  x := 2 ;
+  IF x = 1 OR y / z = 0 THEN  --> 여기에서 ORA-01476 오류 발생
+    DBMS_OUTPUT.PUT_LINE('x = 0 OR y / z = 0') ;
+  END IF ;
+END ;
+
+--===============================================================
+-- /* Example 8-4 연결연산자.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('Hello, ' || 'World!') ;
+  DBMS_OUTPUT.PUT_LINE('Hello, ' || NULL || 'World!') ; --> NULL에 대한 연결 연산은 무시됨
+  DBMS_OUTPUT.PUT_LINE(24 || ' 시간') ;       --> 숫자 24를 문자로 묵시적 변환 후 연결
+  DBMS_OUTPUT.PUT_LINE(CONCAT(24, ' 시간')) ; --> 숫자 24를 문자로 묵시적 변환 후 연결
+END ;
+
+--===============================================================
+-- /* Example 8-5 NULL 여부 확인 연산자 IS NULL.SQL  */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM NULL 여부 확인에는 IS NULL 연산을 사용해야 한다.
+DECLARE
+  x VARCHAR2(10) ;
+  y NUMBER ;
+BEGIN
+  x := NULL ; print_boolean('NULL IS NULL    '  , x IS NULL) ;
+  x := NULL ; print_boolean('NULL IS NOT NULL'  , x IS NOT NULL) ;
+  x := '' ;   print_boolean(''''' IS NULL      ', x IS NULL) ;
+  x := ' ' ;  print_boolean(''' '' IS NULL     ', x IS NULL) ;
+  x := NULL ; print_boolean('NULL = NULL     '  , x = NULL) ;
+  x := NULL ; print_boolean('NULL <> NULL    '  , x <> NULL) ;
+  y := 0 ;    print_boolean('0 IS NULL       '  , y IS NULL) ;
+END ;
+
+--===============================================================
+-- /* Example 8-6 IS NULL 대신에 = NULL 을 잘못 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM "IS NULL" 대신에 "= NULL" 을 사용하면 의도한 결과를 얻을 수 없다.
+DECLARE
+  x varchar2(10) ;
+BEGIN
+  x := NULL ;
+  IF x = NULL THEN  -- 실수로 x IS NULL 대신에 x = NULL을 사용함
+    DBMS_OUTPUT.PUT_LINE('위치 1. 테스트 : x = NULL ') ;
+  END IF ;
+  IF x <> NULL THEN -- 실수로 x IS NOT NULL 대신에 x <> NULL을 사용함
+    DBMS_OUTPUT.PUT_LINE('위치 2, 테스트 : x <> NULL ') ;
+  END IF ;
+  print_boolean('위치 3. x =  NULL', x = NULL) ;
+  print_boolean('위치 4. x <> NULL', x <> NULL) ;
+  print_boolean('위치 5. x IS NULL', x IS NULL) ;
+END ;
+
+--===============================================================
+-- /* Example 8-7 LIKE 연산자.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  x varchar2(10) ;
+BEGIN
+  x := 'SMITH' ; print_boolean(Q'['SMITH' LIKE 'S%'    ]', x LIKE 'S%') ;
+  x := 'SMITH' ; print_boolean(Q'['SMITH' LIKE 'S____' ]', x LIKE 'S____') ;
+  x := 'SMITH' ; print_boolean(Q'['SMITH' LIKE 'SMITH' ]', x LIKE 'SMITH') ;
+  x := 'SMITH' ; print_boolean(Q'['SMITH' LIKE 's%'    ]', x LIKE 's%') ;
+  x := 'SMITH' ; print_boolean(Q'['SMITH' NOT LIKE 's%']', x NOT LIKE 's%') ;
+  x := NULL    ; print_boolean(Q'[NULL LIKE 'A'        ]', x LIKE 'A') ;
+  x := NULL    ; print_boolean(Q'[NULL NOT LIKE 'A'    ]', x NOT LIKE 'A') ;
+  x := '한글'  ; print_boolean(Q'['한글' LIKE '__'     ]', '한글' LIKE '__') ;
+END ;
+
+--===============================================================
+-- /* Example 8-8 BETWEEN 연산자.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  x NUMBER := 10 ;
+BEGIN
+  print_boolean('x(10)     BETWEEN    5 AND 15  ', x     BETWEEN    5 AND 15) ;
+  print_boolean('x(10) NOT BETWEEN    5 AND 15  ', x NOT BETWEEN    5 AND 15) ;
+  print_boolean('x(10)     BETWEEN   15 AND  5  ', x     BETWEEN   15 AND  5) ;
+  print_boolean('x(10)     BETWEEN NULL AND 10  ', x     BETWEEN NULL AND 10) ;
+  print_boolean('x(10) NOT BETWEEN NULL AND 10  ', x NOT BETWEEN NULL AND 10) ;
+  print_boolean('x(10)     BETWEEN    5 AND NULL', x     BETWEEN    5 AND NULL) ;
+  print_boolean('x(10) NOT BETWEEN    5 AND NULL', x NOT BETWEEN    5 AND NULL) ;
+  print_boolean('NULL      BETWEEN    5 AND 10  ', NULL  BETWEEN    5 AND 10) ;
+END ;
+
+--===============================================================
+-- /* Example 8-9 IN 연산자.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  x NUMBER := 10 ;
+BEGIN
+  print_boolean('x        IN (6, 8, 10)      ', x        IN (6, 8, 10)) ;
+  print_boolean('x    NOT IN (6, 8, 10)      ', x    NOT IN (6, 8, 10)) ;
+  print_boolean('x        IN (6, 8, 10, NULL)', x        IN (6, 8, 10, NULL)) ;
+  print_boolean('NULL     IN (6, 8, 10, NULL)', NULL     IN (6, 8, 10, NULL)) ;
+  print_boolean('NULL NOT IN (6, 8, 10, NULL)', NULL NOT IN (6, 8, 10, NULL)) ;
+END ;
+
+--===============================================================
+-- /* Example 8-10 BOOLEAN 표현식.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  v_bool BOOLEAN ;
+BEGIN
+  v_bool := FALSE ;
+
+  -- IF문의 분기 조건 판단에 사용
+  IF v_bool = TRUE THEN
+    DBMS_OUTPUT.PUT_LINE('v_bool이 참입니다.') ;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('v_bool이 거짓입니다.') ;
+  END IF ;
+
+  v_bool := FALSE ;
+  -- WHILE문의 순환 조건 판단에 사용
+  WHILE v_bool = FALSE
+  LOOP
+    v_bool := TRUE ;
+  END LOOP ;
+
+  v_bool := FALSE;
+  -- BOOLEAN 표현식에 NOT 사용
+  WHILE NOT v_bool = FALSE
+  LOOP
+    v_bool := TRUE ;
+  END LOOP ;
+END ;
+
+--===============================================================
+-- /* Example 8-11 단순 CASE 표현식.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM Simple CASE expression
+DECLARE
+  v_BOOL BOOLEAN := TRUE ;
+  v_STR  STRING(100) ;
+BEGIN
+  -- ´Ü¼ø CASE Ç¥Çö½Ä(Simple CASE expression)
+  v_STR := CASE v_BOOL WHEN TRUE  THEN 'v_BOOL is TRUE'
+                       WHEN FALSE THEN 'v_BOOL is FALSE'
+                       ELSE            'v_BOOL is NULL'
+           END ;
+  DBMS_OUTPUT.PUT_LINE(v_STR) ;
+END ;
+
+--===============================================================
+-- /* Example 8-12 조사 CASE 표현식.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 조사 CASE 표현식으로 변경
+DECLARE
+  v_BOOL BOOLEAN := TRUE ;
+  v_STR  STRING(100) ;
+BEGIN
+  -- 조사 CASE 표현식(Searched CASE expression)
+  v_STR := CASE WHEN v_BOOL = TRUE  THEN 'v_BOOL is TRUE'
+                WHEN v_BOOL = FALSE THEN 'v_BOOL is FALSE'
+                ELSE                     'v_BOOL is NULL'
+           END ;
+  DBMS_OUTPUT.PUT_LINE(v_STR) ;
+END ;
+
+--===============================================================
+-- /* Example 8-13 두 개 이상의 조건이 만족되는 경우에는 순서가 먼저인 절이 적용된다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 2개 이상의 조건이 만족되는 경우에는
+REM 순서적으로 먼저 나타나는 WHEN이 적용된다.
+DECLARE
+  v_BOOL  BOOLEAN := TRUE ;
+  v_TRUE  BOOLEAN := TRUE ;
+  v_FALSE BOOLEAN := FALSE ;
+  v_STR  STRING(100) ;
+BEGIN
+  v_STR := CASE v_BOOL WHEN TRUE    THEN 'v_BOOL = TRUE'    -- TRUE
+                       WHEN v_TRUE  THEN 'v_BOOL = v_TRUE'  -- TRUE
+                       WHEN FALSE   THEN 'v_BOOL = FALSE'   -- FALSE
+                       WHEN v_FALSE THEN 'v_BOOL = v_FALSE' -- FALSE
+                       ELSE              'v_BOOL IS NULL'
+           END ;
+  DBMS_OUTPUT.PUT_LINE(v_STR) ;
+END ;
+
+--===============================================================
+-- /* Example 8-14 내장 SQL 함수 DECODE는 PLSQL에서 지원되지 않는다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 내장 SQL 함수 DECODE는 PL/SQL에서 지원되지 않음
+DECLARE
+  v_NUM NUMBER := 1 ;
+BEGIN
+  DBMS_OUTPUT.PUT_LINE(v_NUM || '은 ' || DECODE(MOD(v_NUM,2), 0, '짝수', '홀수') || '입니다.') ;
+END ;
+
+--===============================================================
+-- /* Example 8-15 CASE 표현식으로 바꾸어 오류 해결.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 다음과 같이 CASE 문으로 바꾸어 사용해야 함
+DECLARE
+  v_NUM NUMBER := 1 ;
+BEGIN
+  DBMS_OUTPUT.PUT_LINE(v_NUM || '은 ' || CASE MOD(v_NUM,2) WHEN 0 THEN '짝수'
+                                              ELSE '홀수' END || '입니다.') ;
+END ;
+
+--===============================================================
+-- /* Example 8-16 DECODE 함수를 사용하려면 SQL문을 사용해야 한다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM DECODE를 사용하려면 다음과 같이 SQL문을 사용해야 함.
+DECLARE
+  v_NUM NUMBER := 1 ;
+  v_TYPE STRING(10) ;
+BEGIN
+  SELECT DECODE(MOD(v_NUM,2), 0, '짝수', '홀수')
+    INTO v_TYPE
+  FROM DUAL ;
+  DBMS_OUTPUT.PUT_LINE(v_NUM || '은 ' || v_TYPE || '입니다.') ;
+END ;
