@@ -916,3 +916,165 @@ BEGIN
   FROM DUAL ;
   DBMS_OUTPUT.PUT_LINE(v_NUM || '은 ' || v_TYPE || '입니다.') ;
 END ;
+
+--===============================================================
+-- /* Example 9-1 SELECT문 */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_cnt NUMBER;
+BEGIN
+	SELECT count(*)
+	  INTO v_cnt
+	  FROM emp;
+	DBMS_OUTPUT.PUT_LINE('COUNT(*) =' || v_cnt);
+END;
+
+--===============================================================
+-- /* Example 9-2 여러 개의 칼럼을 가지는 SELECT 문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_empno		emp.empno  %TYPE;
+	v_ename		emp.ENAME	 %TYPE;
+	v_deptno	emp.deptno %TYPE;
+	v_job			emp.job 	 %TYPE;
+BEGIN
+	SELECT empno
+		   , ename
+			 , deptno
+			 , job
+	  INTO v_empno
+		   , v_ename
+			 , v_deptno
+			 , v_job
+	  FROM emp
+	 WHERE empno = 7788;
+	DBMS_OUTPUT.PUT_LINE('v_empno = ' || v_empno);
+	DBMS_OUTPUT.PUT_LINE('v_ename  = ' || v_ename);
+	DBMS_OUTPUT.PUT_LINE('v_deptno = ' || v_deptno);
+	DBMS_OUTPUT.PUT_LINE('v_job = ' || v_job);
+END;
+
+--===============================================================
+-- /* Example 9-3.SELECT 문에서 PLSQL 입력 변수의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM SELECT 문에서 PL/SQL 입력 변수의 사용
+DECLARE
+  v_empno  emp.empno%TYPE ;
+  v_ename  emp.ename%TYPE ;
+  v_rate   number := 1.1 ;
+  v_sal    number ;
+BEGIN
+  v_empno := 7788 ;
+  SELECT ename
+       , (sal+comm)*v_rate  -- SELECT 칼럼에 입력 변수 v_rate를 사용
+    INTO v_ename, v_sal     -- 출력 변수
+    FROM emp
+   WHERE empno = v_empno ;  -- 리터럴을 입력 변수 v_empno로 대체
+END ;
+
+--===============================================================
+-- /* Example 9-4 SELECT 문에서 ROWTYPE의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_emprec		emp%ROWTYPE;	-- 레코드 변수 선언
+BEGIN
+	v_emprec.empno := 7788;
+	SELECT *
+    INTO v_emprec	-- 레코드 변수 사용
+    FROM emp
+   WHERE empno = v_emprec.empno;
+  DBMS_OUTPUT.PUT_LINE('이름 = ' || v_emprec.ename);
+	DBMS_OUTPUT.PUT_LINE('부서번호 = ' || v_emprec.deptno);
+  DBMS_OUTPUT.PUT_LINE('job = ' || v_emprec.job);
+END;
+
+--===============================================================
+-- /* Example 9-5 SELECT 절에 변수를 사용하면 결과를 변수에 저장하는 게 아니라 변수의 값을 반환한다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_name		emp.ename%TYPE;
+	v_ename 	emp.ename%TYPE;
+BEGIN
+	v_name := 'TIGER';
+	SELECT v_name
+	  INTO v_ename
+    FROM emp
+   WHERE empno = 7788;
+  DBMS_OUTPUT.PUT_LINE('이름 = ' || v_ename);
+END;
+
+--===============================================================
+-- /* Example 9-6 INSERT문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+BEGIN
+	INSERT INTO emp( empno
+								 , ename
+								 , hiredate
+								 , deptno
+								 )
+          VALUES ( 9000
+								 , '홍길동'
+								 , sysdate
+								 , 30
+								 );
+	DBMS_OUTPUT.PUT_LINE('INSERT 건수: ' || SQL%ROWCOUNT);	-- 변경된 건수 출력
+	COMMIT;
+END;
+
+--===============================================================
+-- /* Example 9-7 INSERT 문에서 PLSQL 입력 변수의 사용.SQL */
+--===============================================================
+REM 앞에서 삽입한 로우 삭제
+DELETE FROM emp
+	    WHERE empno = 9000;
+
+DECLARE
+	v_empno		emp.empno%TYPE;
+	v_ename		emp.ename%TYPE;
+	v_deptno	emp.deptno%TYPE;
+BEGIN
+	v_empno  := 9000;
+	v_ename  := '홍길동';
+	v_deptno := 30;
+
+	INSERT INTO emp( empno
+								 , ename
+								 , hiredate
+								 , deptno
+								 )
+          VALUES ( v_empno		-- PL/SQL 변수 사용
+								 , v_ename		-- PL/SQL 변수 사용
+                 , sysdate
+                 , v_deptno		-- PL/SQL 변수 사용
+                 );
+	DBMS_OUTPUT.PUT_LINE('INSERT 건수: ' || SQL%ROWCOUNT);	-- 변경된 건수 출력
+	COMMIT;
+END;
