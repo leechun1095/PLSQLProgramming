@@ -1035,16 +1035,20 @@ SET TAB OFF
 SET SERVEROUTPUT ON
 
 BEGIN
-	INSERT INTO emp( empno
-								 , ename
-								 , hiredate
-								 , deptno
-								 )
-          VALUES ( 9000
-								 , '홍길동'
-								 , sysdate
-								 , 30
-								 );
+	INSERT INTO emp
+	(
+		  empno
+		, ename
+		, hiredate
+		, deptno
+	)
+	VALUES
+	(
+			9000
+		, '홍길동'
+		, sysdate
+		, 30
+	);
 	DBMS_OUTPUT.PUT_LINE('INSERT 건수: ' || SQL%ROWCOUNT);	-- 변경된 건수 출력
 	COMMIT;
 END;
@@ -1065,16 +1069,238 @@ BEGIN
 	v_ename  := '홍길동';
 	v_deptno := 30;
 
-	INSERT INTO emp( empno
-								 , ename
-								 , hiredate
-								 , deptno
-								 )
-          VALUES ( v_empno		-- PL/SQL 변수 사용
-								 , v_ename		-- PL/SQL 변수 사용
-                 , sysdate
-                 , v_deptno		-- PL/SQL 변수 사용
-                 );
+	INSERT INTO emp
+  (
+			empno
+		, ename
+		, hiredate
+		, deptno
+	)
+  VALUES
+ 	(
+			v_empno		-- PL/SQL 변수 사용
+		, v_ename		-- PL/SQL 변수 사용
+		, sysdate
+		, v_deptno		-- PL/SQL 변수 사용
+	);
 	DBMS_OUTPUT.PUT_LINE('INSERT 건수: ' || SQL%ROWCOUNT);	-- 변경된 건수 출력
+	COMMIT;
+END;
+
+--===============================================================
+-- /* Example 9-8 INSERT 문에서 ROWTYPE의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 앞에서 삽입한 로우를 삭제
+DELETE FROM emp WHERE empno = 9000 ;
+
+DECLARE
+	v_emprec	emp%ROWTYPE;		-- 레코드 변수
+BEGIN
+	v_emprec.empno		:= 9000;
+	v_emprec.ename		:= '홍길동';
+	v_emprec.deptno 	:= 30;
+	v_emprec.hiredate	:= SYSDATE;
+
+	INSERT INTO emp
+			 VALUES	v_emprec;
+	DBMS_OUTPUT.PUT_LINE('INSERT 건수: ' || SQL%ROWCOUNT);	-- 변경된 건수 출력
+END;
+
+--===============================================================
+-- /* Example 9-9 INSERT 문에서 테이블 명과 INTO 절의 칼럼 목록에는 변수를 사용할 수 없다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM INSERT 문에서 테이블 명과 INTO 절의 칼럼 목록에는 변수를 사용할 수 없다.
+REM 다음 프로그램은 오류를 발생시킨다.
+DECLARE
+  v_colname VARCHAR2(30) := 'ename';
+BEGIN
+  INSERT INTO emp
+	(
+			empno /* 변수 */
+		, v_colname
+		, hiredate
+		, deptno
+	)
+  VALUES
+	(
+			9000
+		, '홍길동'
+		, SYSDATE
+		, 30
+	);
+  DBMS_OUTPUT.PUT_LINE('INSERT 건수: '||SQL%ROWCOUNT) ; -- 변경된 건수 출력
+  COMMIT;
+END;
+
+--===============================================================
+-- /* Example 9-10 UPDATE */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+BEGIN
+	UPDATE emp
+		 SET deptno = 40
+	 WHERE empno = 9000;
+  DBMS_OUTPUT.PUT_LINE('INSERT 건수: '||SQL%ROWCOUNT) ; -- 변경된 건수 출력
+END;
+
+--===============================================================
+-- /* Example 9-11 UPDATE 문에서 PLSQL 입력 변수의 사용.SQL*/
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_empno		emp.empno%TYPE := 9000;
+	v_deptno	emp.deptno%TYPE := 40;
+BEGIN
+	UPDATE emp
+		 SET deptno = v_deptno
+	 WHERE empno = v_empno;
+	DBMS_OUTPUT.PUT_LINE('INSERT 건수: '||SQL%ROWCOUNT) ; -- 변경된 건수 출력
+END;
+
+--===============================================================
+-- /* Example 9-12 UPDATE 문에서 ROWTYPE의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_emprec	emp%ROWTYPE;
+BEGIN
+	v_emprec.empno := 9000;
+
+	SELECT *
+		INTO v_emprec
+		FROM emp
+	 WHERE empno = v_emprec.empno;
+
+	v_emprec.ename	:= '홍길동';
+	v_emprec.deptno := 40;
+
+	UPDATE emp
+		 SET ROW = v_emprec		-- 레코드 변수를 사용한 UPDATE, SET ROW 다음에만 레코드 변수 사용 가능
+	 WHERE empno = v_emprec.empno;
+	DBMS_OUTPUT.PUT_LINE('INSERT 건수: '||SQL%ROWCOUNT) ; -- 변경된 건수 출력
+	COMMIT;
+END;
+
+--===============================================================
+-- /* Example 9-13 MERGE문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+BEGIN
+	MERGE INTO emp a
+	USING DUAL
+		 ON (a.empno = 9000)
+	 WHEN MATCHED THEN			-- 사번이 9000인 로우 존재 시
+		 UPDATE
+				SET a.comm = a.comm * 1.1
+	 WHEN NOT MATCHED THEN	-- 사번이 9000인 로우 미존재 시
+		 INSERT
+		 (
+				empno
+			, ename
+			, job
+			, hiredate
+			, sal
+			, deptno
+		 )
+		 VALUES
+		 (
+				9000
+			, '홍길동'
+			, 'CLERK'
+			, SYSDATE
+			, 3000
+			, 10
+		 );
+	DBMS_OUTPUT.PUT_LINE('INSERT 건수: '||SQL%ROWCOUNT) ; -- 변경된 건수 출력
+	COMMIT;
+END;
+
+--===============================================================
+-- /* Example 9-14 MERGE문에서 PLSQL 입력 변수의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_empno		emp.empno%TYPE := 9000;
+BEGIN
+	MERGE INTO emp a
+	USING DUAL
+		 ON (a.empno = v_empno)
+	 WHEN MATCHED THEN		-- 사번이 9000인 로우 존재 시 커미션을 10% 증가
+		 UPDATE
+				SET a.comm = a.comm * 1.1
+	 WHEN NOT MATCHED THEN
+		 INSERT
+		 (
+				empno
+			, ename
+			, job
+			, hiredate
+			, sal
+			, deptno
+		 )
+		 VALUES
+		 (
+				v_empno
+			, '홍길동'
+			, 'CLERK'
+			, SYSDATE
+			, 3000
+			, 10
+		 );
+	DBMS_OUTPUT.PUT_LINE('INSERT 건수: '||SQL%ROWCOUNT) ; -- 변경된 건수 출력
+	COMMIT;
+END;
+
+--===============================================================
+-- /* Example 9-15 MERGE 문의 INSERT 절에서 레코드 변수 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_emprec	emp%ROWTYPE;
+BEGIN
+	SELECT *
+		INTO v_emprec
+		FROM emp
+	 WHERE empno = 7788;
+
+	v_emprec.empno := 9000;
+	v_emprec.ename := '홍길동';
+
+	MERGE INTO emp a
+	USING DUAL
+		 ON (a.empno = v_emprec.empno)
+	 WHEN MATCHED THEN
+		 UPDATE							-- MERGE 문의 UPDATE절에서는 레코드 변수를 사용할 수 없다.
+				SET a.comm = a.comm * 1.1
+	 WHEN NOT MATCHED THEN
+		 INSERT
+		 VALUES v_emprec;		-- MERGE 문의 INSERT절에서는 레코드 변수를 사용할 수 있다.
+	DBMS_OUTPUT.PUT_LINE('INSERT 건수: '||SQL%ROWCOUNT) ; -- 변경된 건수 출력
 	COMMIT;
 END;
