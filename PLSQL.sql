@@ -1304,3 +1304,33 @@ BEGIN
 	DBMS_OUTPUT.PUT_LINE('INSERT 건수: '||SQL%ROWCOUNT) ; -- 변경된 건수 출력
 	COMMIT;
 END;
+
+--===============================================================
+-- /* Example 9-16 .DELETE문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+BEGIN
+	DELETE FROM emp
+	 WHERE empno = 9000;
+	DBMS_OUTPUT.PUT_LINE('INSERT 건수: '||SQL%ROWCOUNT) ; -- 변경된 건수 출력
+ 	COMMIT;
+END;
+
+--===============================================================
+-- /* Example 9-17 DELETE문에서 PLSQL 입력 변수의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_empno	emp.empno%TYPE := 9000;
+BEGIN
+	DELETE FROM emp
+	 WHERE empno = v_empno;
+	DBMS_OUTPUT.PUT_LINE('INSERT 건수: '||SQL%ROWCOUNT) ; -- 변경된 건수 출력
+	COMMIT;
+END;
