@@ -1334,3 +1334,411 @@ BEGIN
 	DBMS_OUTPUT.PUT_LINE('INSERT 건수: '||SQL%ROWCOUNT) ; -- 변경된 건수 출력
 	COMMIT;
 END;
+
+--===============================================================
+-- /* Example 9-18 시퀀스를 SQL문 없이 직접 사용 */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 시퀀스 emp_seq 생성
+--CREATE SEQUENCE emp_seq;
+
+DECLARE
+	v_seq_value NUMBER;
+BEGIN
+	-- SQL 없이 시퀀스를 직접 사용하는 방법
+	v_seq_value := emp_seq.NEXTVAL;
+
+	DBMS_OUTPUT.PUT_LINE('시퀀스 값: ' || TO_CHAR(v_seq_value));
+END;
+
+
+-- 모든 생성된 sequences 조회
+-- select * from user_sequences
+
+-- 현재 시퀀스 조회
+-- select emp_seq.currval from dual
+
+-- 다음 시권스 조회
+-- select emp_seq.nextval from dual
+
+--===============================================================
+-- /* Example 9-19 시퀀스를 SQL문에 포함하여 사용 */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_seq_value NUMBER;
+BEGIN
+	-- SQL을 사용하여 시퀀스를 얻어 옴
+  -- "v_seq_value := emp_seq.NEXTVAL"에 비해 비효율적임
+	SELECT emp_seq.NEXTVAL
+		INTO v_seq_value
+		FROM DUAL;
+
+	DBMS_OUTPUT.PUT_LINE('시퀀스 값: ' || TO_CHAR(v_seq_value));
+END;
+
+
+-- 모든 생성된 sequences 조회
+-- select * from user_sequences
+
+-- 현재 시퀀스 조회
+-- select emp_seq.currval from dual
+
+-- 다음 시권스 조회
+-- select emp_seq.nextval from dual
+
+--===============================================================
+-- /* Example 9-20 RETURNING절을 사용하여 DML문의 결과값을 PL/SQL로 반환 */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	c_hiredate DATE := DATE'2016-01-02';
+	v_empno		 emp.empno%TYPE;
+	v_ename		 emp.ename%TYPE;
+	v_hiredate emp.hiredate%TYPE;
+BEGIN
+	DELETE FROM emp
+	 WHERE empno = 9000;
+
+	-- INSERT 후 삽입된 값을 반환
+	INSERT INTO emp
+  (
+		empno
+	, ename
+	, hiredate
+	, deptno
+	)
+	VALUES
+	(
+		9000
+	, '홍길동'
+	, c_hiredate
+	, 40
+	)
+	RETURNING empno, ename, hiredate          -- 컬럼을
+			 INTO v_empno, v_ename, v_hiredate;   -- PL/SQL 변수로 리턴
+	DBMS_OUTPUT.PUT_LINE('사원추가=(' || v_empno || ', ' || v_ename || ', ' || TO_CHAR(v_hiredate, 'YYYYMMDD') || ')');
+
+	-- UPDATE 후 변경된 값을 반환
+	UPDATE emp
+		 SET HIREDATE = c_hiredate
+	 WHERE empno = v_empno
+	 RETURNING empno, ename, hiredate          -- 컬럼을
+				INTO v_empno, v_ename, v_hiredate;   -- PL/SQL 변수로 리턴
+	DBMS_OUTPUT.PUT_LINE('사원변경=(' || v_empno || ', ' || v_ename || ', ' || TO_CHAR(v_hiredate, 'YYYYMMDD') || ')');
+
+	-- DELETE 후 삭제된 사원의 사번, 이름, 입사일 반환
+	DELETE FROM emp
+	 WHERE empno = v_empno
+	 RETURNING empno, ename, hiredate          -- 컬럼을
+				INTO v_empno, v_ename, v_hiredate;   -- PL/SQL 변수로 리턴
+	DBMS_OUTPUT.PUT_LINE('사원삭제=(' || v_empno || ', ' || v_ename || ', ' || TO_CHAR(v_hiredate, 'YYYYMMDD') || ')');
+	COMMIT;
+END;
+
+--===============================================================
+-- /* Example 9-21 COMMIT의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM COMMIT의 사용
+BEGIN
+  DELETE FROM emp WHERE empno = 9000 ; -- 이전 예제에서 생성된 데이터 삭제
+  COMMIT ;
+  INSERT INTO emp(empno, ename, hiredate, sal) VALUES (9000, '홍길동', SYSDATE, 9000) ;
+  UPDATE EMP SET sal = sal + 100 WHERE empno = 9000 ;
+  COMMIT ;
+END ;
+
+--===============================================================
+-- /* Example 9-22 DDL에 의한 묵시적 COM.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 이전에 생성된 테이블 t가 있으면 DROP
+DROP TABLE t ;
+
+PAUSE
+
+REM DDL에 의한 묵시적 COMMIT
+REM EXECUTE IMMEDIATE 'CREATE TABLE' 문은 트랜잭션을 묵시적으로 COMMIT 한다.
+BEGIN
+  DELETE FROM emp WHERE empno = 9000 ; -- 이전 예제에서 생성된 데이터 삭제
+  COMMIT ;
+  INSERT INTO emp(empno, ename, hiredate, sal) VALUES (9000, '홍길동', SYSDATE, 9000) ;
+  UPDATE EMP SET SAL = SAL + 100 WHERE EMPNO = 9000 ;
+  EXECUTE IMMEDIATE 'CREATE TABLE t(C1 NUMBER)' ; -- DDL이 수행되면 자동으로 COMMIT이 수행된다.
+  ROLLBACK ; -- 6번 줄에서 트랜잭션이 이미 묵시적으로 COMMIT되었으므로 무의미함.
+  DECLARE
+    v_sal NUMBER ;
+  BEGIN
+    SELECT sal INTO v_sal FROM emp WHERE empno = 9000 ;
+    DBMS_OUTPUT.PUT_LINE('SAL = '||v_sal) ; -- 사번 9000에 대한 DML이 COMMIT됨.
+  END ;
+END ;
+
+--===============================================================
+-- /* Example 9-23 ROLLBACK의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM ROLLBACK의 사용
+BEGIN
+  DELETE FROM emp WHERE empno = 9000 ; -- 이전 예제에서 생성된 데이터 삭제
+  COMMIT ; -- emp 테이블의 데이터는 14건이 됨
+  -- 다음 INSERT문에 의해 emp 테이블의 데이터는 15건이 됨
+  INSERT INTO emp(empno, ename, hiredate, sal) VALUES (9000, '홍길동', SYSDATE, 9000) ;
+  UPDATE EMP SET SAL = SAL + 100 WHERE EMPNO = 9000 ;
+  ROLLBACK ; -- 4번 줄과 5번 줄의 변경을 취소. emp 테이블의 데이터는 다시 14건이 됨
+  DECLARE
+    v_cnt NUMBER ;
+  BEGIN
+    SELECT count(*) INTO v_cnt FROM emp WHERE empno = 9000 ;
+    DBMS_OUTPUT.PUT_LINE('사번 9000 건수 = '||v_cnt) ;
+  END ;
+END ;
+
+--===============================================================
+-- /* Example 9-24 SAVEPOINT의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM SAVEPOINT의 사용
+DECLARE
+  v_org_sal NUMBER := 5000;
+BEGIN
+  DELETE FROM emp WHERE empno = 9000 ; -- 이전 예제에서 생성된 데이터 삭제
+  COMMIT ;
+  INSERT INTO emp(empno, ename, hiredate, sal)
+         VALUES (9000, '홍길동', SYSDATE, v_org_sal) ;
+  SAVEPOINT p1 ;     -- 첫 번째 SAVEPOINT p1
+  UPDATE emp SET sal = sal + 100 WHERE empno = 9000 ;
+  SAVEPOINT p2 ;     -- 두 번째 SAVEPOINT p2
+  BEGIN
+    INSERT INTO emp(empno, ename, hiredate, sal)
+           VALUES (9000, '임꺽정', SYSDATE, v_org_sal) ;
+  EXCEPTION WHEN OTHERS THEN
+    -- 12번 줄의 INSERT문이 실패하면 9번 줄의UPDATE와 12번 줄의 INSERT는 취소하고
+    -- 6번 줄의 INSERT문은 변경에 반영하도록 한다.
+    DBMS_OUTPUT.PUT_LINE('오류 발생 감지: '||SQLERRM) ; -- 오류 메시지 출력
+    ROLLBACK TO p1 ; -- 트랜잭션을 p1 상태로 복귀
+  END ;
+  COMMIT ;
+  DECLARE
+    v_sal NUMBER ;
+  BEGIN
+    SELECT sal INTO v_sal FROM emp WHERE empno = 9000 ;
+    DBMS_OUTPUT.PUT_LINE('SAL = '||v_sal) ; -- 6번 줄에서 INSERT된 급여가 출력된다.
+    IF v_org_sal <> v_sal THEN
+      DBMS_OUTPUT.PUT_LINE('원 급여가 변경되었습니다.') ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('원 급여가 변경되지 않았습니다.') ;
+    END IF ;
+  END ;
+END ;
+
+--===============================================================
+-- /* Example 9-25 동일한 이름의 SAVEPOINT를 여러 곳에서 사용.SQL  */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 동일한 이름의 SAVEPOINT를 여러 곳에서 사용
+DECLARE
+  v_org_sal NUMBER := 5000;
+BEGIN
+  DELETE FROM emp WHERE empno = 9000 ; -- 이전 예제에서 생성된 데이터 삭제
+  COMMIT ;
+  INSERT INTO emp(empno, ename, hiredate, sal)
+         VALUES (9000, '홍길동', SYSDATE, v_org_sal) ;
+  SAVEPOINT p1 ; -- 처음 지정된 SAVEPOINT p1의 위치
+  UPDATE emp SET sal = sal + 100 WHERE empno = 9000 ;
+  SAVEPOINT p1 ;  -- 8번 줄과 SAVEPOINT 이름이 동일. p1을 이 지점으로 옮김
+  BEGIN
+    INSERT INTO emp(empno, ename, hiredate, sal)
+           VALUES (9000, '임꺽정', SYSDATE, v_org_sal) ;
+  EXCEPTION WHEN OTHERS THEN
+    -- 12번 줄의 INSERT문이 실패하면 INSERT만 취소하고
+    -- 6번 줄의 INSERT문과 9번 줄의 UPDATE문은 변경에 반영하도록 한다.
+    DBMS_OUTPUT.PUT_LINE('오류 발생 감지: '||SQLERRM) ; -- 오류 메시지 출력
+    ROLLBACK TO p1 ; -- 트랜잭션을 p1 상태로 복귀
+  END ;
+  COMMIT ;
+  DECLARE
+    v_sal NUMBER ;
+  BEGIN
+    SELECT sal INTO v_sal FROM emp WHERE empno = 9000 ;
+    DBMS_OUTPUT.PUT_LINE('SAL = '||v_sal) ; -- 9번 줄에서 UPDATE된 급여 출력.
+    IF v_org_sal <> v_sal THEN
+      DBMS_OUTPUT.PUT_LINE('원 급여가 변경되었습니다.') ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('원 급여가 변경되지 않았습니다.') ;
+    END IF ;
+  END ;
+END ;
+
+--===============================================================
+-- /* Example 9-26 READ ONLY 트랜잭션에서 DML을 사용하면 오류 발생.SQL  */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM READ ONLY 트랜잭션에서 DML을 사용하면 오류 발생
+BEGIN
+  DELETE FROM emp WHERE empno = 9000 ; -- 이전 예제에서 생성된 데이터 삭제
+  COMMIT ;
+  SET TRANSACTION READ ONLY ; -- DML을 금지시킨다.
+  -- DML을 다시 가능하게 하려면 아래와 같이 사용한다.
+  -- SET TRANSACTION READ WRITE ;
+  -- 다음 INSERT문은 DML이므로 오류를 발생시킨다.
+  INSERT INTO emp(empno, ename, hiredate, sal) VALUES (9000, '홍길동', SYSDATE, 9000) ;
+END ;
+
+--===============================================================
+-- /* Example 9-27 CLOB의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DROP TABLE t_clob ;
+
+REM 예제용 테이블 생성
+CREATE TABLE t_clob (
+ line#  NUMBER,
+ script CLOB
+) ;
+
+--PAUSE
+
+REM CLOB의 사용
+DECLARE
+  v_rec t_clob%ROWTYPE ;
+BEGIN
+  DELETE FROM t_clob ;
+
+  v_rec.line#  := 1 ;
+  v_rec.script := '옛날에 옛날에 어느 깊은 산속 연못 가에 도토리 나무가 서 있었습니다.' ;
+  INSERT INTO T_CLOB VALUES v_rec ;
+
+  v_rec.line#  := 2 ;
+  v_rec.script := '어느 해 날씨가 너무 좋아서 도토리 나무에 도토리가 정말 많이 열렸습니다.' ;
+  INSERT INTO t_clob VALUES v_rec ;
+
+  SELECT line#, script
+    INTO v_rec
+    FROM t_clob
+   WHERE line# = 1 ;
+  DBMS_OUTPUT.PUT_LINE(v_rec.line#||' : '||v_rec.script) ;
+END ;
+
+--===============================================================
+-- /* Example 9-28 PLSQL에서는 CLOB 타입과 VARCHAR2 타입간의 구별이 거의 없이 사용 가능하다.SQL  */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM PL/SQL에서는 CLOB 타입과 VARCHAR2 타입간의 구별이 거의 없이 사용 가능하다.
+DECLARE
+  v_dname    VARCHAR2(32767) ;
+  v_clob     CLOB ;
+  v_varchar  VARCHAR2(4000) ;
+  v_clob2    CLOB ;
+  v_varchar2 VARCHAR2(4000) ;
+BEGIN
+  -- VARCHAR2 타입의 칼럼을 CLOB 타입의 변수에 저장할 수 있다.
+  SELECT dname INTO v_clob
+    FROM dept
+   WHERE deptno = 10 ;
+
+  -- CLOB 타입의 칼럼을 VARCHAR2 타입의 변수에 저장할 수 있다.
+  SELECT SCRIPT INTO v_varchar
+    FROM t_clob
+   WHERE line# = 1 ;
+
+  -- CLOB <-> VARCHAR2 간의 변환은 문제 없이 지원된다(VARCHAR2의 길이가 충분한 경우에 한한다).
+  v_clob2    := v_varchar ;
+  v_varchar2 := v_clob ;
+
+  -- VARCHAR2 타입에 사용 가능한 내장함수를 CLOB 타입에도 동일하게 사용할 수 있다
+  v_clob2  := UPPER(v_clob) ;
+  v_dname  := LOWER(SUBSTR(v_clob, 1, 10)) ;
+
+  -- VARCHAR2 변수에서 CLOB으로의 변환도 자동으로 수행된다.
+  v_clob2  := INITCAP(v_dname) ;
+
+  -- CLOB의 DBMS_OUTPUT 출력도 동일하게 지원된다.
+  DBMS_OUTPUT.PUT_LINE('CLOB 출력: '||v_clob) ;
+
+  -- DML에서 CLOB 타입의 변수를 VARCHAR2 타입 칼럼에 사용할 수 있다.
+  UPDATE dept
+     SET dname = v_clob
+   WHERE deptno = 10 ;
+
+  -- DML에서 VARCHAR2 타입의 변수를 CLOB 타입 칼럼에 사용할 수 있다.
+  UPDATE t_clob
+     SET script = v_varchar
+   WHERE line# = 1 ;
+END ;
+
+--===============================================================
+-- /* Example 9-29 CLOB과 VARCHAR2가 완전히 호환되지는 않는다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM CLOB과 VARCHAR2가 완전히 호환되지는 않는다.
+REM 32767바이트 길이의 한계가 존재하고, 일부 호환되지 않는 함수가 있다.
+DECLARE
+  v_varchar2 VARCHAR2(32767) ;
+  v_clob     CLOB ;
+BEGIN
+  -- 크기가 32768인 CLOB을 생성한다.
+  v_clob := RPAD('A', 32767, 'A') || '$' ;
+  -- 길이를 128K로 늘린다.
+  v_clob := v_clob || v_clob || v_clob || v_clob ;
+
+  -- 일부 내장 함수는 길이 32767바이트 이상의 CLOB에서 정상 동작한다.
+  v_clob     := REPLACE(v_clob, 'A', 'B') ; -- 정상
+  v_clob     := TRIM(v_clob) ;              -- 정상
+
+  -- 32767바이트를 초과하는 CLOB을 VARCHAR2 타입에 복사할 수 없다.
+  BEGIN
+    v_varchar2 := v_clob ;                    -- 오류
+  EXCEPTION WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('오류 발생(1): '||SQLERRM) ; -- 오류 메시지 출력
+  END ;
+
+  -- 일부 내장 함수는 길이 32767바이트 이상의 CLOB에서 오류가 발생한다.
+  BEGIN
+    v_varchar2 := SUBSTR(v_clob, 1, 32768) ;  -- 오류
+  EXCEPTION WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('오류 발생(2): '||SQLERRM) ; -- 오류 메시지 출력
+  END ;
+  BEGIN
+    v_clob     := INITCAP(v_clob) ;           -- 오류
+  EXCEPTION WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('오류 발생(3): '||SQLERRM) ; -- 오류 메시지 출력
+  END ;
+END ;
