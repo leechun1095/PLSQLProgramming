@@ -1742,3 +1742,596 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('오류 발생(3): '||SQLERRM) ; -- 오류 메시지 출력
   END ;
 END ;
+
+--===============================================================
+-- /* Example 10-1 조건분기문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_cnt		NUMBER;
+	v_type	STRING(10);
+BEGIN
+	-- 테이블 emp가 생성되어 있는지 확인한다.
+	-- 딕셔너리 뷰 user_tables에는 계정에 생성된 모든 테이블 목록이 들어 있다.
+	SELECT COUNT(*)
+		INTO v_cnt
+		FROM USER_TABLES
+	 WHERE TABLE_NAME = 'EMP';
+
+	IF v_cnt > 0
+	THEN
+		DBMS_OUTPUT.PUT_LINE('테이블 EMP가 존재합니다.');
+	ELSE
+		DBMS_OUTPUT.PUT_LINE('테이블 EMP가 존재하지 않습니다.');
+	END IF;
+END;
+
+--===============================================================
+-- /* Example 10-2 단순 CASE문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 예제 8-11 단순 CASE 표현식 → 단순 CASE문으로 변경함
+/*
+DECLARE
+  v_BOOL BOOLEAN := TRUE ;
+  v_STR  STRING(100) ;
+BEGIN
+  -- Simple CASE expression
+  v_STR := CASE v_BOOL WHEN TRUE  THEN 'v_BOOL is TRUE'
+                       WHEN FALSE THEN 'v_BOOL is FALSE'
+                       ELSE            'v_BOOL is NULL'
+           END ;
+  DBMS_OUTPUT.PUT_LINE(v_STR) ;
+END ;
+*/
+DECLARE
+  v_BOOL BOOLEAN := TRUE ;
+  v_STR  STRING(100) ;
+BEGIN
+  -- Simple CASE Statement
+  CASE v_BOOL WHEN TRUE THEN
+                v_STR := 'v_BOOL is TRUE' ;
+              WHEN FALSE THEN
+                v_STR := 'v_BOOL is FALSE' ;
+              ELSE
+                v_STR := 'v_BOOL is NULL' ;
+  END CASE ;
+  DBMS_OUTPUT.PUT_LINE(v_STR) ;
+END ;
+
+--===============================================================
+-- /* Example 10-3 조사 CASE문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 예제 8-12 조사 CASE 표현식 → 조사 CASE문으로 변경함
+DECLARE
+  v_BOOL BOOLEAN := TRUE ;
+  v_STR  STRING(100) ;
+BEGIN
+  -- Searched CASE Statement
+  CASE WHEN v_BOOL = TRUE THEN
+         v_STR := 'v_BOOL is TRUE' ;
+       WHEN v_BOOL = FALSE THEN
+         v_STR := 'v_BOOL is FALSE' ;
+       ELSE
+         v_STR := 'v_BOOL is NULL' ;
+  END CASE ;
+  DBMS_OUTPUT.PUT_LINE(v_STR) ;
+END ;
+
+--===============================================================
+-- /* Example 10-4 두 개 이상의 조건이 만족되는 경우에는 순서가 먼저인 것이 적용된다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 두 개 이상의 조건이 만족되는 경우에는 순서가 먼저인 것이 적용된다
+DECLARE
+  v_BOOL  BOOLEAN := TRUE ;
+  v_TRUE  BOOLEAN := TRUE ;
+  v_FALSE BOOLEAN := FALSE ;
+  v_STR  STRING(100) ;
+BEGIN
+  CASE v_BOOL WHEN TRUE THEN
+                v_STR := 'v_BOOL = TRUE'   ; -- TRUE
+              WHEN v_TRUE  THEN
+                v_STR := 'v_BOOL = v_TRUE' ; -- TRUE
+              WHEN FALSE   THEN
+                v_STR := 'v_BOOL = FALSE'  ; -- FALSE
+              WHEN v_FALSE THEN
+                v_STR := 'v_BOOL = v_FALSE'; -- FALSE
+              ELSE
+                v_STR := 'v_BOOL IS NULL' ;
+  END CASE ;
+  DBMS_OUTPUT.PUT_LINE(v_STR) ;
+END ;
+
+--===============================================================
+-- /* Example 10-5 만족하는 조건이 발견되면 CASE문에서 예외가 발생하지 않는다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM CASE문에 나열된 선택자나 조건식 중에서 만족하는 조건이 발견되면 예외가 발생하지 않는다.
+DECLARE
+  v_num PLS_INTEGER := 3 ;
+  v_str  STRING(100) ;
+BEGIN
+  -- 만족하는 조건이 발견되면 예외가 발생하지 않는다.
+  CASE v_num WHEN 1 THEN
+               v_str := '숫자 1' ;
+             WHEN 2 THEN
+               v_str := '숫자 2' ;
+             WHEN 3 THEN
+               v_str := '숫자 3' ; -- 만족하는 조건이 존재
+             WHEN 4 THEN
+               v_str := '숫자 4' ;
+  END CASE;
+  DBMS_OUTPUT.PUT_LINE(v_str) ;
+END ;
+
+--===============================================================
+-- /* Example 10-6 만족하는 조건이 발견되지 않으면 CASE문에서 예외가 발생한다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM CASE문에 나열된 선택자나 조건식 중에서 만족하는 조건이 발견되지 않으면 예외가 발생한다.
+DECLARE
+  v_num PLS_INTEGER := 3 ;
+  v_str  STRING(100) ;
+BEGIN
+  -- 선택값 3을 주석 처리하면 만족하는 조건이 발견되지 않아 예외가 발생한다.
+  CASE v_num WHEN 1 THEN
+               v_str := '숫자 1' ;
+             WHEN 2 THEN
+               v_str := '숫자 2' ;
+          -- WHEN 3 THEN
+          --   v_str := '숫자 3' ; -- 만족하는 조건이 주석 처리되어 없어졌음
+             WHEN 4 THEN
+               v_str := '숫자 4' ;
+  END CASE;
+  DBMS_OUTPUT.PUT_LINE(v_str) ;
+END ;
+
+--===============================================================
+-- /* Example 10-7 ELSE를 추가하면 CASE문의 예외를 방지할 수 있다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 마지막 조건으로 ELSE를 추가하면 CASE문의 예외를 방지할 수 있다
+DECLARE
+  v_num PLS_INTEGER := 3 ;
+  v_str  STRING(100) ;
+BEGIN
+  -- 선택값 3을 주석 처리하면 만족하는 조건이 발견되지 않아 예외가 발생한다.
+  CASE v_num WHEN 1 THEN
+               v_str := '숫자 1' ;
+             WHEN 2 THEN
+               v_str := '숫자 2' ;
+          -- WHEN 3 THEN
+          --   v_str := '숫자 3' ; -- 만족하는 조건이 주석 처리되어 없어졌음
+             WHEN 4 THEN
+               v_str := '숫자 4' ;
+             ELSE
+               v_str := '알 수 없는 숫자 ' || v_num ; -- ELSE는 항상 만족되는 조건임
+  END CASE;
+  DBMS_OUTPUT.PUT_LINE(v_str) ;
+END ;
+
+--===============================================================
+-- /* Example 10-8 GOTO 문을 사용한 4중 루프 탈출.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM GOTO 문을 사용한 4중 LOOP 탈출
+BEGIN
+  FOR I IN 1 .. 10 LOOP
+    FOR J IN 1 .. 10 LOOP
+      FOR K IN 1 .. 10 LOOP
+        FOR L IN 1 .. 10 LOOP
+          GOTO AFTER_LOOP ; -- 4중 LOOP 탈출
+          DBMS_OUTPUT.PUT_LINE('L='||L) ;
+        END LOOP ;
+        DBMS_OUTPUT.PUT_LINE('K='||K) ;
+      END LOOP ;
+      DBMS_OUTPUT.PUT_LINE('J='||J) ;
+    END LOOP ;
+    DBMS_OUTPUT.PUT_LINE('I='||I) ;
+  END LOOP ;
+  <<AFTER_LOOP>> -- 레이블
+  DBMS_OUTPUT.PUT_LINE('AFTER LOOP') ;
+END ;
+
+--===============================================================
+-- /* Example 10-9 EXIT 문을 사용한 4중 루프 탈출.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM EXIT 문을 사용한 4중 LOOP 탈출
+BEGIN
+  <<OUTMOST_LOOP>> -- 레이블
+  FOR I IN 1 .. 10 LOOP
+    FOR J IN 1 .. 10 LOOP
+      FOR K IN 1 .. 10 LOOP
+        FOR L IN 1 .. 10 LOOP
+          EXIT OUTMOST_LOOP ; -- 4중 LOOP 탈출
+          DBMS_OUTPUT.PUT_LINE('L='||L) ;
+        END LOOP ;
+        DBMS_OUTPUT.PUT_LINE('K='||K) ;
+      END LOOP ;
+      DBMS_OUTPUT.PUT_LINE('J='||J) ;
+    END LOOP ;
+    DBMS_OUTPUT.PUT_LINE('I='||I) ;
+  END LOOP ;
+  DBMS_OUTPUT.PUT_LINE('AFTER LOOP') ;
+END ;
+
+--===============================================================
+-- /* Example 10-10 더 깊은 레벨의 레이블을 참조하는 무조건 분기문 오류.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+-- GOTO문은 현재 위치와 동일한 깊이에 선언도니 레이블이나 더 바깥에 선언된 레이블을 지정할 수 있음
+-- 그러나 현재 레벨보다 더 깊은 곳에 위치한 레이블은 지정할 수 없음
+REM 무조건 분기문: 더 깊은 레벨의 레이블을 참조하므로 오류
+DECLARE
+  v_bool BOOLEAN := TRUE;
+BEGIN
+  GOTO deeper_level ; -- 더 깊은 레벨의 레이블을 참조하므로 오류
+
+  IF v_bool = TRUE THEN
+  <<deeper_level>>
+    NULL ;
+  END IF;
+END;
+
+--===============================================================
+-- /* Example 10-11 다른 프로시저 내부의 레이블을 참조하는 무조건 분기문 오류.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+-- GOTO문이 다른 FUNCTION 또는 프로시저 내부에 선언된 레이블을 지정하는 것은 불가함
+REM 무조건 분기문: 다른 프로시저의 레이블을 참조하므로 오류
+DECLARE
+ PROCEDURE p AS
+ BEGIN
+  <<subprogram_p>>
+   NULL ;
+ END ;
+BEGIN
+  GOTO subprogram_p ; -- 다른 프로시져 내부의 레이블을 참조하므로 오류
+END;
+
+--===============================================================
+-- /* Example 10-12 레이블의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+/*
+1. 레이블명으로 사용 가능한 문자열의 기준은 변수명의 기준과 동일하며, 한글도 사용 가능함
+2. 변수명과 마찬가지로 큰따옴표로 레이블명을 둘러싸는 경우에는 어떤 문자라도 사용 가능함
+*/
+REM 레이블의 사용
+DECLARE
+  v_num NUMBER := 0 ;
+BEGIN
+  IF v_num = 0 THEN
+    GOTO block_label ; -- 뒤따르는 블록 레이블로 이동
+  END IF ;
+
+  <<block_label>>  -- BLOCK에 대한 레이블
+  BEGIN
+    IF v_num = 0 THEN
+      GOTO statement_label ; -- 뒤따르는 문장 레이블로 이동
+    END IF ;
+
+    <<statement_label>>  -- 문장(실행문)에 대한 레이블
+    v_num := v_num + 1 ;
+		DBMS_OUTPUT.PUT_LINE('1111') ;
+
+    IF v_num = 0 THEN
+			DBMS_OUTPUT.PUT_LINE('2222') ;
+      GOTO statement_label ; -- 앞에 위치한 문장 레이블로 이동
+    END IF ;
+  END ;
+
+  IF v_num = 0  THEN
+		DBMS_OUTPUT.PUT_LINE('3333') ;
+    GOTO block_label ; -- 앞에 위치한 블록 레이블로 이동
+  END IF ;
+END ;
+
+--===============================================================
+-- /* Example 10-13 레이블 다음에는 최소한 1개의 실행문이 필요하다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 레이블 다음에는 최소한 1개의 실행문이 필요하다
+REM 적어도 하나의 NULL 문이라도 있어야 한다.
+DECLARE
+  v_num NUMBER := 0 ;
+BEGIN
+  IF v_num = 0 THEN
+    GOTO program_end ;
+  END IF ;
+
+<<program_end>>
+  NULL ; -- 레이블 다음에 반드시 실행문이 있어야 하는 규칙 때문에 삽입한 문장
+END ;
+
+--===============================================================
+-- /* Example 10-14 가장 단순한 기본 LOOP 문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 기본 LOOP문은 종료 조건이 반드시 필요하다.
+REM 이 예제는 종료 조건이 없는 무한 FNVM로, 영원히 끝나지 않는다.
+REM CTRL+C로 수행을 중단시켜야 한다
+BEGIN
+	LOOP	-- 이 LOOP문은 종료 조건이 없는 무한 루프다. CTRL+C로 수행을 중단시켜야 한다
+		NULL;
+	END LOOP;
+END;
+
+--===============================================================
+-- /* Example 10-15 GOTO 탈출문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM GOTO 탈출문
+DECLARE
+  v_num NUMBER := 1 ;
+BEGIN
+  LOOP
+    DBMS_OUTPUT.PUT_LINE('루프 내부, v_num = '||v_num) ;
+    v_num:= v_num + 1 ;
+    IF v_num > 3 THEN
+      GOTO end_loop ;
+    END IF ;
+  END LOOP ;
+  << end_loop >>
+  DBMS_OUTPUT.PUT_LINE('루프 종료, v_num = '||v_num) ;
+END ;
+
+--===============================================================
+-- /* Example 10-16 EXIT 탈출문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM EXIT 탈출문
+DECLARE
+  v_num NUMBER := 1 ;
+BEGIN
+  LOOP
+    DBMS_OUTPUT.PUT_LINE('루프 내부, v_num = '||v_num) ;
+    v_num:= v_num + 1 ;
+    IF v_num > 3 THEN
+      EXIT ; -- LOOP를 즉시 탈출하여 END LOOP 다음의 실행문으로 실행 위치를 이동
+    END IF ;
+  END LOOP ;
+  DBMS_OUTPUT.PUT_LINE('루프 종료, v_num = '||v_num) ;
+END ;
+
+--===============================================================
+-- /* Example 10-17 EXIT WHEN 탈출문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM EXIT WHEN 탈출문
+DECLARE
+  v_num NUMBER := 1 ;
+BEGIN
+  LOOP
+    DBMS_OUTPUT.PUT_LINE('루프 내부, v_num = '||v_num) ;
+    v_num:= v_num + 1 ;
+    EXIT WHEN v_num > 3 ;
+  END LOOP ;
+  DBMS_OUTPUT.PUT_LINE('루프 종료, v_num = '||v_num) ;
+END ;
+
+--===============================================================
+-- /* Example 10-18 WHILE LOOP문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+-- 예제 10-15를 WHILE LOOP로 변경
+DECLARE
+  v_num NUMBER := 1 ;
+BEGIN
+  WHILE v_num <= 3
+  LOOP
+    DBMS_OUTPUT.PUT_LINE('루프내부 : ' || v_num) ;
+    v_num := v_num + 1 ;
+  END LOOP ;
+  DBMS_OUTPUT.PUT_LINE('루프종료 : ' || v_num) ;
+END ;
+
+--===============================================================
+-- /* Example 10-19 범위를 지정한 FOR LOOP 문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+BEGIN
+	FOR idx IN 1 .. 3
+	LOOP
+		  DBMS_OUTPUT.PUT_LINE('루프내부 : ' || idx);
+	END LOOP;
+END;
+
+--===============================================================
+-- /* Example 10-20 FOR문의 순환 범위는 반드시 하한값 .. 상한값으로 지정해야 한다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM REVERSE 옵션 사용과 관계 없이 순환 범위는
+REM 반드시 하한값..상한값으로 지정해야 한다.
+DECLARE
+  v_cnt PLS_INTEGER ;
+BEGIN
+  v_cnt := 0 ;
+  -- IN 하한값 .. 상한값 사용
+  FOR idx IN REVERSE 1 .. 3
+  LOOP
+    v_cnt := v_cnt + 1 ;
+  END LOOP ;
+  DBMS_OUTPUT.PUT_LINE('루프 실행 횟수(1..3) : ' || v_cnt || '회') ;
+
+  v_cnt := 0 ;
+  -- IN 상한값 .. 하한값 사용
+  FOR idx IN REVERSE 3 .. 1 -- 오류 1 .. 3으로 해야함.
+  LOOP
+    v_cnt := v_cnt + 1 ;
+  END LOOP ;
+  DBMS_OUTPUT.PUT_LINE('루프 실행 횟수(3..1) : ' || v_cnt || '회') ;
+END ;
+
+--===============================================================
+-- /* Example 10-21 FOR 문의 인덱스 변수는 FOR 문을 벗어나면 사용할 수 없다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM FOR 문의 인덱스 변수는 FOR 문을 벗어나면 사용할 수 없다.
+REM 6번 줄에서는 변수 idx가 존재하지 않으므로 오류를 발생시킨다.
+BEGIN
+  FOR idx IN 1 .. 3
+  LOOP
+    DBMS_OUTPUT.PUT_LINE('루프 내부, idx = ' || idx) ;
+  END LOOP ;
+  -- DBMS_OUTPUT.PUT_LINE('루프 종료, idx = ' || idx) ; -- LOOP INDEX 변수는 LOOP문 밖에서 사용하면 에러남
+END ;
+
+--===============================================================
+-- /* Example 10-22 DECLARE 절의 변수 idx와 FOR 문의 인덱스 변수 idx는 서로 다른 변수이다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM DECLARE 절의 변수 idx와 FOR 문의 인덱스 변수 idx는 이름만 같지 서로 다른 변수이다.
+DECLARE
+  idx NUMBER := 0 ;
+BEGIN
+  FOR idx IN 1 .. 3
+  LOOP
+    DBMS_OUTPUT.PUT_LINE('루프 내부, idx = ' || idx) ; -- 1, 2, 3 리턴
+  END LOOP ;
+  DBMS_OUTPUT.PUT_LINE('루프 종료, idx = ' || idx) ; -- 0 리턴
+END ;
+
+--===============================================================
+-- /* Example 10-23 FOR 문의 인덱스 변수는 변경할 수 없다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM FOR 문의 인덱스 변수는 변경할 수 없다.
+REM 다음 예제는 인덱스 변수를 변경하므로 오류를 발생시킨다.
+BEGIN
+  FOR idx IN 1 .. 3
+  LOOP
+    idx := idx + 1 ;
+  END LOOP ;
+END ;
+
+--===============================================================
+-- /* Example 10-24 FOR 문의 상하한 값에 변수 또는 표현식을 사용할 수 있다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM FOR 문의 상/하한 값에 변수 또는 표현식을 사용할 수 있다.
+DECLARE
+  v_lower_value NUMBER := 0 ;
+BEGIN
+  FOR idx IN v_lower_value .. (v_lower_value + 2) -- 하한값은 변수, 상한값은 표현식을 사용함
+  LOOP
+    DBMS_OUTPUT.PUT_LINE('루프 내부, idx = ' || idx) ;
+  END LOOP ;
+END ;
+
+--===============================================================
+-- /* Example 10-25 CONTINUE 문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM CONTINUE 문
+DECLARE
+  v_num NUMBER := 0 ;
+BEGIN
+  LOOP
+    v_num:= v_num + 1 ;
+    EXIT WHEN v_num > 5 ;
+    IF v_num > 3 THEN
+      CONTINUE; -- 5번 줄부터 다시 시작
+    END IF ;
+    DBMS_OUTPUT.PUT_LINE('루프 내부, v_num = '||v_num) ;
+  END LOOP ;
+  DBMS_OUTPUT.PUT_LINE('루프 종료, v_num = '||v_num) ;
+END ;
+
+--===============================================================
+-- /* Example 10-26 CONTINUE WHEN 문.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM CONTINUE WHEN 문
+DECLARE
+  v_num NUMBER := 0 ;
+BEGIN
+  LOOP
+    v_num:= v_num + 1 ;
+    EXIT WHEN v_num > 5 ;
+    CONTINUE WHEN v_num > 3; -- 5번 줄부터 다시 시작
+    DBMS_OUTPUT.PUT_LINE('루프 내부, v_num = '||v_num) ;
+  END LOOP ;
+  DBMS_OUTPUT.PUT_LINE('루프 종료, v_num = '||v_num) ;
+END ;
