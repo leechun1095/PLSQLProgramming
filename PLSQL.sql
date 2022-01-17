@@ -2335,3 +2335,315 @@ BEGIN
   END LOOP ;
   DBMS_OUTPUT.PUT_LINE('루프 종료, v_num = '||v_num) ;
 END ;
+
+--===============================================================
+-- /* Example 11-1 VARRAY와 Nested Table을 사용한 스키마 레벨 데이터 타입 정의.SQL */
+--===============================================================
+/*
+
+1. 스칼라 데이터 타입 : 단일 값 데이터 타입
+2. 컴포지트 데이터 타입 : 복합 데이터 타입
+ 1) 컬렉션(Collection) : 배열과 유사한 구조로 동일한 데이터 타입이 반복되는 데이터를 저장하는 자료 구조이다.
+	(1) Associative Array(연관배열) :
+		- 컬렉션 항목의 개수를 사전에 지정하지 않는다.
+		- 키(인덱스)는 정수와 문자열 둘 중 하나를 사용할 수 있다.(음수도 가능)
+		- 컬렉션 항목의 개수에는 제한이 없음
+		- Associative Array 변수는 초기화를 필요로 하지 않는다.
+		- 변수는 NULL이 될 수 없으며, NULL을 할당하려고 하면 오류가 발생한다.
+		- 키(인덱스)-값 쌍으로 이루어진 무한 배열이라고 볼 수 있다
+		- Associative Array는 서브프로그램 내에서 사용될 소규모의 참조 테이블에서 사용하거나 컬렉션을 서버로 전달 또는 서버로부터 전달받을 때 유용함
+		- Hash Table, Hash Map
+
+	(2) VARRAY(가변 크기 배열) :
+		- VARRAY 변수의 선언 시 배열의 크기를 지정해야 한다
+		- VARRAY 인덱스는 1부터 시작하는 자연수 값이며, 저장된 값은 순서가 바뀌지 않는 것이 보장된다
+		- 초기화되지 않은 VARRAY 변수는 NULL 이며, 사용 전에 반드시초기화해 주어야 오류가 발생하지 않는다.
+		- 컬렉션 생성자 또는 EXTEND 메소드로 초기화 가능함
+		- VARRAY는 배열의 최대 개수를 사전에 알고 있는 경우 또는 배열의 항목을 항상 동일한 순서로 접근하는 경우 유용함
+		- Array, Vector
+
+	(3) Nested Table(중첩 테이블) : Set, Bag(중복 허용 집합)
+
+ 2) 레코드(Record) : 서로 다른 데이터 타입의 데이터를 모아 놓은 자료 구조이다.
+
+- ADT(Abstract Data Type) : TYPE문을 사용하여 스키마 레벨에서 정의되는 사용자 정의 객체 타입을 말한다.
+
+*/
+
+--PROCEDURE 생성 시
+--CREATE OR REPLACE PROCEDURE SCOTT.check_salary(a_empno NUMBER)
+
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM VARRAY를 사용한 스키마 레벨 데이터 타입 정의
+CREATE OR REPLACE TYPE languages IS VARRAY(10) OF VARCHAR2(64)
+
+PAUSE
+
+REM Nested Table을 사용한 스키마 레벨 데이터 타입 정의
+CREATE OR REPLACE TYPE cities IS TABLE OF VARCHAR2(64)
+
+--===============================================================
+-- /* Example 11-2 Associative Array를 사용한 ADT 정의는 불가능하다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM Associative Array를 사용한 스키마 레벨 데이터 타입 정의는 불가능
+CREATE OR REPLACE TYPE colors IS TABLE OF VARCHAR2(64) INDEX BY PLS_INTEGER
+/
+PAUSE
+
+SHOW ERROR
+
+--===============================================================
+-- /* Example 11-3 Associative Array 컬렉션의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM Associative Array 컬렉션의 사용
+DECLARE
+  -- 정수를 인덱스로 하는 Associative Array 타입 선언
+  TYPE city IS TABLE OF VARCHAR2(64) INDEX BY PLS_INTEGER ;
+
+  -- 문자열을 인덱스로 하는 Associative Array 타입 선언
+  TYPE population IS TABLE OF NUMBER INDEX BY VARCHAR2(64);
+
+  v_city       city ;        -- 컬렉션 변수 선언
+  v_Population Population ;  -- Population 타입의 컬렉션 변수
+BEGIN
+
+  -- 정수 인덱스를 사용하는 Associative Array의 값 할당
+  -- 특정 인덱스에 값을 지정하면, 이후 이 인덱스로 값의 접근이 가능하다.
+  v_city(-1) := '서울' ;
+  v_city( 0) := '부산' ;
+  v_city( 2) := '대전' ;
+
+  -- 인덱스 -1, 0, 2를 제외한 인덱스의 항목은 값을 가지지 않는다.
+  -- 다른 인덱스를 사용하여 v_city에 접근하면 ORA-01403 오류가 발생한다.
+
+  -- 문자열 인덱스를 사용하는 Associative Array의 값 지정
+  v_Population('서울') := 10373234 ; -- 서울 인구
+  v_Population('부산') :=  3812392 ; -- 부산 인구
+  v_Population('대전') :=  1390510 ; -- 대전 인구
+
+  -- v_city에 들어 있는 각 도시의 인구 출력
+  DBMS_OUTPUT.PUT_LINE('도시별 인구(2000년 기준)') ;
+  DBMS_OUTPUT.PUT_LINE('========================') ;
+  DBMS_OUTPUT.PUT_LINE(v_city(-1) || ' :' || TO_CHAR(v_Population(v_city(-1)), '99,999,999')) ;
+  DBMS_OUTPUT.PUT_LINE(v_city( 0) || ' :' || TO_CHAR(v_Population(v_city( 0)), '99,999,999')) ;
+  DBMS_OUTPUT.PUT_LINE(v_city( 2) || ' :' || TO_CHAR(v_Population(v_city( 2)), '99,999,999')) ;
+END ;
+
+--===============================================================
+-- /* Example 11-4 BULK COLLECT는 여러 건의 SELECT 결과를 Associative Array 변수에 넣는다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	TYPE string_array IS TABLE OF VARCHAR2(100) INDEX BY PLS_INTEGER;
+	v_arr string_array;
+BEGIN
+	-- 테이블 emp의 모든 로우의 ename을 Associative Array 컬렉션에 한 번에 적재한다.
+	SELECT ename
+		BULK COLLECT INTO v_arr
+		FROM emp;
+	DBMS_OUTPUT.PUT_LINE('Associative Array 컬렉션 건수 = '||v_arr.COUNT) ;
+END;
+
+--===============================================================
+-- /* Example 11-5 함수의 반환형으로 Associative Array 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	TYPE int_array IS TABLE OF PLS_INTEGER INDEX BY PLS_INTEGER; -- Associative Array ADT
+	v_fibonacci int_array; -- 피보나치 수열을 저장할 배열
+	c_order CONSTANT PLS_INTEGER := 20;
+
+	/*
+	 * N 개의 피보나치 수열을 계산하여 배열을 반환하는 함수
+ 	 * 피보나치 수열은 처음 두 개의 항이 0과 1이고, 세 번째 항부터는
+   * F(n) = F(n-1) + F(n-2)의 점화식으로 주어지는 수열이다.
+	 */
+	FUNCTION fibonacci_sequence(num IN PLS_INTEGER) RETURN int_array
+	IS
+		v_arr int_array; -- 반환할 피보나치 수열
+	BEGIN
+		v_arr(1) := 0; -- 첫번째 항
+		v_arr(2) := 1; -- 두번째 항
+		FOR i IN 3..num
+		LOOP -- 세번째 항 이상
+			v_arr(i) := v_arr(i-1) + v_arr(i-2);
+		END LOOP;
+		RETURN v_arr; -- Associative Array를 반환
+	END;
+
+BEGIN
+	v_fibonacci := fibonacci_sequence(c_order); -- 함수가 반환한 Associative Array
+	DBMS_OUTPUT.PUT_LINE('피보나치 수열의 '||c_order||'개 항') ;
+	FOR i IN 1 .. c_order
+	LOOP
+		DBMS_OUTPUT.PUT(CASE WHEN 1 < i THEN ', ' END || v_fibonacci(i)) ;
+	END LOOP;
+	DBMS_OUTPUT.PUT_LINE('') ;
+END;
+
+/*
+SQL> 피보나치 수열의 20개 항
+0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181
+*/
+
+--===============================================================
+-- /* Example 11-6 값이 할당되지 않은 Associative Array 항목은 참조할 수 없다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 값이 할당되지 않은 Associative Array 항목은 참조할 수 없다.
+DECLARE
+  TYPE int_array IS TABLE OF PLS_INTEGER INDEX BY PLS_INTEGER;
+  v_arr int_array ;
+BEGIN
+  v_arr(-1) := -1 ;
+  v_arr( 1) :=  1 ;
+  DBMS_OUTPUT.PUT_LINE('v_arr(-1) = '||v_arr(-1)) ; -- 정상
+  DBMS_OUTPUT.PUT_LINE('v_arr( 1) = '||v_arr( 1)) ; -- 정상
+  DBMS_OUTPUT.PUT_LINE('v_arr( 0) = '||v_arr( 0)) ; -- 오류 발생
+END ;
+
+--===============================================================
+-- /* Example 11-7 VARRAY 컬렉션의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM VARRAY 컬렉션의 사용
+DECLARE
+  -- VARRAY 타입 선언 : 자연수를 인덱스로 하는, 최대 10개의 64바이트 문자열의 배열
+	TYPE languages IS VARRAY(10) OF VARCHAR2(64);
+	v_lang		languages;	-- VARRAY 변수 선언 v_lang = NULL임
+	v_lang2		languages := languages('한국어', '중국어', '영어'); -- 변수 선언 시 생성자를 사용하여 초기화
+BEGIN
+	v_lang := languages();										-- 컬렉션 생성자를 사용하여 Empty(크기가 0)로 초기화.
+	v_lang := languages('한국어');							-- 컬렉션 생성자를 사용하여 크기가 1인 VARRAY로 재초기화
+	v_lang := languages('한국어', '중국어');		-- 컬렉션 생성자를 사용하여 크기가 2인 VARRAY로 재초기화
+
+	v_lang.EXTEND(2);		-- 크기 두개 증가
+	v_lang(3) := '일본어';
+	v_lang(4) := '영어';
+
+	-- v_lang에 들어 있는 언어 출력
+  DBMS_OUTPUT.PUT_LINE('	') ;
+  DBMS_OUTPUT.PUT_LINE('언어 목록') ;
+  DBMS_OUTPUT.PUT_LINE('===========') ;
+	FOR i IN v_lang.FIRST .. v_lang.LAST
+	LOOP
+		DBMS_OUTPUT.PUT_LINE(TO_CHAR(i) || ' : ' ||v_lang(i));
+	END LOOP;
+END;
+
+--===============================================================
+-- /* Example 11-8 BULK COLLECT는 여러 건의 SELECT 결과를 VARRAY 변수에 넣는다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM BULK COLLECT를 사용하면 여러 건의 SELECT 결과를 VARRAY 변수에 넣을 수 있다.
+
+DECLARE
+	TYPE string_array IS VARRAY(20) OF VARCHAR2(100);
+	v_arr string_array;
+BEGIN
+	-- 테이블 emp의 모든 로우의 ename을 VARRAY 컬렉션에 한 번에 적재한다.
+	SELECT ename
+		BULK COLLECT INTO v_arr
+		FROM emp
+	 WHERE ROWNUM <= 20;
+  FOR i IN v_arr.FIRST .. v_arr.LAST
+  LOOP
+    DBMS_OUTPUT.PUT_LINE(i ||'. '|| v_arr(i)) ;
+  END LOOP;
+	DBMS_OUTPUT.PUT_LINE('VARRAY 컬렉션 건수 = '||v_arr.COUNT) ;
+END;
+
+--===============================================================
+-- /* Example 11-9 할당되지 않은 VARRAY 항목은 참조할 수 없다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 할당되지 않은 VARRAY 항목은 참조할 수 없다.
+DECLARE
+	TYPE string_array IS VARRAY(5) OF VARCHAR2(100) ;
+	v_arr string_array ;
+BEGIN
+	v_arr := string_array() ;
+	v_arr.EXTEND(3) ;
+	v_arr(1) := '사과' ; -- 정상 실행
+	v_arr(2) := '배'   ; -- 정상 실행
+	v_arr(3) := '망고' ; -- 정상 실행
+	v_arr(4) := '수박' ; -- 할당되지 않은 항목을 참조하므로 오류 발생
+END ;
+
+--===============================================================
+-- /* Example 11-10 Nested Table 컬렉션의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM Nested Table 컬렉션의 사용
+DECLARE
+  -- 정수를 인덱스로 하는 Nested Table
+	TYPE city IS TABLE OF VARCHAR2(64);
+	-- 빈 컬렉션 변수 선언
+	v_city 		city;
+
+	-- 컬렉션 변수 선언과 동시에 컬렉션 생성자를 사용하여 값을 초기화
+	v_city2 	city := city('서울','부산','대전');
+BEGIN
+	-- 실행중에도 컬렉션 생성자를 사용하여 초기화 가능
+	v_city('서울','부산','대전','광주','인천');
+
+	v_city := city();		-- 크기 0(Empty 컬렉션)으로 초기화
+	-- 크기를 증가시키고 값을 지정한다.
+	v_city.EXTEND ; v_city(1) := '서울' ;
+	v_city.EXTEND ; v_city(2) := '부산' ;
+	v_city.EXTEND ; v_city(3) := '대구' ;
+	v_city.EXTEND ; v_city(4) := '광주' ;
+	DBMS_OUTPUT. PUT_LINE('도시 개수 : ' ||v_city.COUNT||'개') ;
+
+	-- 유효한 컬렉션 값을 출력
+  FOR i in v_city.FIRST .. v_city.LAST
+  LOOP
+    IF v_city.EXISTS(i) THEN
+      DBMS_OUTPUT.PUT_LINE(CHR(9)||'v_city(' || TO_CHAR(i) || ') : ' ||v_city(i)) ;
+    END IF ;
+  END LOOP ;
+
+  -- 3번 인덱스를 삭제한다. 삭제된 인덱스의 항목은 더 이상 접근이 불가능하다.
+  v_city.DELETE(3) ;
+  DBMS_OUTPUT. PUT_LINE('도시 개수 : ' ||v_city.COUNT||'개') ;
+
+  -- 유효한 컬렉션 값을 출력
+  FOR i in v_city.FIRST .. v_city.LAST
+  LOOP
+    IF v_city.EXISTS(i) THEN
+      DBMS_OUTPUT.PUT_LINE(CHR(9)||'v_city(' || TO_CHAR(i) || ') : ' ||v_city(i)) ;
+    END IF ;
+  END LOOP ;
+END ;
