@@ -11,4 +11,8 @@ BEGIN
 		BULK COLLECT INTO v_arr
 		FROM emp;
 	DBMS_OUTPUT.PUT_LINE('Associative Array 컬렉션 건수 = '||v_arr.COUNT) ;
+  FOR i IN v_arr.FIRST..v_arr.LAST
+  LOOP
+    DBMS_OUTPUT.PUT_LINE('ename' || i || '= '||v_arr(i));
+  END LOOP;
 END;

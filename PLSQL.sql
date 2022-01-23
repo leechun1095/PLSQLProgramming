@@ -2350,6 +2350,7 @@ END ;
 		- 컬렉션 항목의 개수에는 제한이 없음
 		- Associative Array 변수는 초기화를 필요로 하지 않는다.
 		- 변수는 NULL이 될 수 없으며, NULL을 할당하려고 하면 오류가 발생한다.
+		- 초기화하지 않고 사용 가능하며 생성자가 존재하지도 않는다.
 		- 키(인덱스)-값 쌍으로 이루어진 무한 배열이라고 볼 수 있다
 		- Associative Array는 서브프로그램 내에서 사용될 소규모의 참조 테이블에서 사용하거나 컬렉션을 서버로 전달 또는 서버로부터 전달받을 때 유용함
 		- Hash Table, Hash Map
@@ -2363,6 +2364,10 @@ END ;
 		- Array, Vector
 
 	(3) Nested Table(중첩 테이블) : Set, Bag(중복 허용 집합)
+		- 순서가 고정되어 있지 않고, 크기도 고정되지 않은 데이터의 집합을 저장하는데 적합한 컬렉션이다
+		- 개수가 확정되지 않거나, 인덱스가 연속적이지 않거나, 컬렉션의 일부 항목을 삭제 또는 변경할 필요가 있는 경우에 유용함
+		- VARRAY 인덱스는 1부터 시작하는 자연수 값이며, 초기화되지 않은 변수는 NULL 이다
+		- Set
 
  2) 레코드(Record) : 서로 다른 데이터 타입의 데이터를 모아 놓은 자료 구조이다.
 
@@ -2456,6 +2461,10 @@ BEGIN
 		BULK COLLECT INTO v_arr
 		FROM emp;
 	DBMS_OUTPUT.PUT_LINE('Associative Array 컬렉션 건수 = '||v_arr.COUNT) ;
+  FOR i IN v_arr.FIRST..v_arr.LAST
+  LOOP
+    DBMS_OUTPUT.PUT_LINE('ename' || i || '= '||v_arr(i));
+  END LOOP;
 END;
 
 --===============================================================
@@ -2602,6 +2611,16 @@ END ;
 --===============================================================
 -- /* Example 11-10 Nested Table 컬렉션의 사용.SQL */
 --===============================================================
+/*
+많이 쓰이는 CHR 함수의미  정리
+
+CHR(9)      탭문자
+CHR(10)     라인피드        <- 줄바꾸기
+CHR(13)     캐리지리턴     <- 행의 처음으로
+CHR(38)     &
+CHR(39)     '                   <- 싱글따옴표
+CHR(44)     ,                   <- 쉼표
+*/
 SET ECHO ON
 SET TAB OFF
 SET SERVEROUTPUT ON
@@ -2617,7 +2636,7 @@ DECLARE
 	v_city2 	city := city('서울','부산','대전');
 BEGIN
 	-- 실행중에도 컬렉션 생성자를 사용하여 초기화 가능
-	v_city('서울','부산','대전','광주','인천');
+	v_city := city('서울','부산','대전','광주','인천');
 
 	v_city := city();		-- 크기 0(Empty 컬렉션)으로 초기화
 	-- 크기를 증가시키고 값을 지정한다.
@@ -2647,3 +2666,144 @@ BEGIN
     END IF ;
   END LOOP ;
 END ;
+
+--===============================================================
+-- /* Example 11-11 DELETE 메소드를 사용하여 삭제한 Nested Table 항목은 참조할 수 없다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM DELETE 메소드를 사용하여 삭제한 Nested Table 항목은 참조할 수 없다.
+DECLARE
+  -- 정수를 인덱스로 하는 Associative Array
+  TYPE city IS TABLE OF VARCHAR2(64) ;
+
+  -- 컬렉션 변수 선언과 동시에 컬렉션 생성자를 사용하여 값을 초기화
+  v_city      city := city('서울', '부산', '대전', '광주', '인천') ;
+BEGIN
+  -- 3번 인덱스를 삭제한다. 삭제된 인덱스의 항목은 더 이상 접근이 불가능하다.
+  v_city.DELETE(3) ;
+  -- 다음 문장은 존재하지 않는 3번 항목을 참조하므로 오류를 일으킨다.
+  DBMS_OUTPUT.PUT_LINE('v_city(' || TO_CHAR(3) || ') : ' ||v_city(3)) ;
+END ;
+
+--===============================================================
+-- /* Example 11-12 BULK COLLECT는 여러 건의 SELECT 결과를 Nested Table 변수에 넣는다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	TYPE string_array IS TABLE OF VARCHAR2(100);
+	v_arr string_array;
+BEGIN
+	SELECT ename
+		BULK COLLECT INTO v_arr
+		FROM emp;
+	DBMS_OUTPUT.PUT_LINE('VARRAY 컬렉션 건수 = '||v_arr.COUNT) ;
+	FOR i IN v_arr.FIRST..v_arr.LAST
+	LOOP
+		DBMS_OUTPUT.PUT_LINE(CHR(9) || 'ename(' || i || ') = ' || v_arr(i)) ;
+	END LOOP;
+END;
+
+--===============================================================
+-- /* Example 11-13 컬렉션 생성자.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 컬렉션 생성자
+DECLARE
+  TYPE string_array IS TABLE OF VARCHAR2(100) ;
+  v_arr1 string_array := string_array() ; -- 변수 선언 시 빈 컬렉션으로 초기화
+  v_arr2 string_array ;
+BEGIN
+  -- 실행 시 네 개의 항목을 가지는 컬렉션으로 초기화
+  v_arr2 := string_array('사과', '수박', '망고', '배') ;
+  DBMS_OUTPUT.PUT_LINE('v_arr1.COUNT = '||v_arr1.COUNT) ;
+  DBMS_OUTPUT.PUT_LINE('v_arr2.COUNT = '||v_arr2.COUNT) ;
+END ;
+
+--===============================================================
+-- /* Example 11-14 동일 타입의 컬렉션 변수 간에는 할당 연산자를 사용하여 데이터 복사가 가능하다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 동일 타입의 컬렉션 변수 간에는 할당 연산자를 사용하여 데이터 복사가 가능하다
+DECLARE
+  TYPE string_array IS TABLE OF VARCHAR2(100) ;
+  v_arr1 string_array ;
+  v_arr2 string_array ;
+
+  PROCEDURE p_print_collection_count(a_title VARCHAR2, a_coll string_array)
+  IS
+  BEGIN
+    IF a_coll IS NULL THEN
+      DBMS_OUTPUT.PUT_LINE(a_title || ': ' || '컬렉션이 NULL입니다.') ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE(a_title || ': ' || '컬렉션 항목이 ' || a_coll.COUNT || '건입니다.') ;
+    END IF ;
+  END ;
+BEGIN
+  v_arr1 := string_array('사과', '수박', '망고', '배') ;
+  v_arr2 := v_arr1 ;  -- 컬렉션 변수 간의 할당 연산을 통한 복사
+  p_print_collection_count('1. v_arr1', v_arr1) ;
+  p_print_collection_count('2. v_arr2', v_arr2) ;
+
+  -- NULL 할당
+  v_arr2 := null ;
+  p_print_collection_count('3. v_arr2', v_arr2) ;
+END ;
+
+--===============================================================
+-- /* Example 11-15 구조가 동일하더라도 타입명이 다르면 할당 연산이 불가능하다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 구조가 동일하더라도 타입명이 다르면 할당 연산이 불가능하다.
+DECLARE
+  TYPE string_array1 IS TABLE OF VARCHAR2(100) ;
+  TYPE string_array2 IS TABLE OF VARCHAR2(100) ;
+  v_arr1 string_array1 := string_array1('사과', '수박', '망고') ;
+  v_arr2 string_array2 ;
+BEGIN
+  v_arr2 := v_arr1 ;  -- 동일 구조이지만 타입명이 다르므로 할당 연산이 불가능하다
+END ;
+
+--===============================================================
+-- /* Example 11-16 컬렉션과 NULL의 비교.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 컬렉션과 NULL의 비교
+-- VARRAY, Nested Table은 IS NULL 연산을 지원한다.
+DECLARE
+  TYPE string_array IS TABLE OF VARCHAR2(100) ;
+  v_arr1 string_array := string_array('사과', '수박', '망고', '배') ;
+  v_arr2 string_array ;
+BEGIN
+  IF v_arr1 IS NULL THEN
+    DBMS_OUTPUT.PUT_LINE('v_arr1 IS NULL') ;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('v_arr1 IS NOT NULL') ;
+  END IF ;
+  IF v_arr2 IS NOT NULL THEN
+    DBMS_OUTPUT.PUT_LINE('v_arr2 IS NOT NULL') ;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('v_arr2 IS NULL') ;
+  END IF ;
+END ;
+
+--===============================================================
+-- /* Example 11-17 컬렉션 간의 동치 혹은 부등 비교.SQL */
+--===============================================================
