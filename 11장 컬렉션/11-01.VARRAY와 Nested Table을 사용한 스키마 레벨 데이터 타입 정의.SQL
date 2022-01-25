@@ -43,3 +43,5 @@ PAUSE
 
 REM Nested Table을 사용한 스키마 레벨 데이터 타입 정의
 CREATE OR REPLACE TYPE cities IS TABLE OF VARCHAR2(64)
+-- 위와 동일한 구문
+CREATE OR REPLACE TYPE cities AS TABLE OF VARCHAR2(64)

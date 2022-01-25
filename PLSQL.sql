@@ -2389,6 +2389,8 @@ PAUSE
 
 REM Nested Table을 사용한 스키마 레벨 데이터 타입 정의
 CREATE OR REPLACE TYPE cities IS TABLE OF VARCHAR2(64)
+-- 위와 동일한 구문
+CREATE OR REPLACE TYPE cities AS TABLE OF VARCHAR2(64)
 
 --===============================================================
 -- /* Example 11-2 Associative Array를 사용한 ADT 정의는 불가능하다.SQL */
@@ -2834,3 +2836,172 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('v_arr1 =  v_arr3') ;
   END IF ;
 END ;
+
+--===============================================================
+-- /* Example 11-18 다차원 컬렉션.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 다차원 컬렉션을 지원하지는 않지만 유사하게 사용할 수는 있다.
+DECLARE
+  TYPE arr_1d_type IS TABLE OF VARCHAR2(100);  -- Nested Table
+  v_arr1_1 arr_1d_type := arr_1d_type('사과', '배');             -- 초기화
+  v_arr1_2 arr_1d_type := arr_1d_type('오렌지', '자몽', '망고'); -- 초기화
+  v_arr1_3 arr_1d_type := arr_1d_type('포도', '앵두');           -- 초기화
+
+  TYPE arr_2d_type IS TABLE OF arr_1d_type;    -- 2차원 Nested Table 타입 선언
+  v_arr2 arr_2d_type := arr_2d_type(v_arr1_1, v_arr1_2); -- 2차원 컬렉션 초기화(1차원 컬렉션 사용)
+
+BEGIN
+  v_arr2.EXTEND;
+  v_arr2(3) := v_arr1_3;
+  DBMS_OUTPUT.PUT_LINE('v_arr2(2)(3) = '||v_arr2(2)(3)); -- 다차원 배열의 항목 참조
+END;
+
+--===============================================================
+-- /* Example 11-19 LIMIT 키워드 없이 전체 건 조회 또는 ROWNUM을 사용하여 SELECT 건수 제한.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM LIMIT 키워드를 사용하지 않는 경우
+REM 한 번의 실행으로 쿼리의 모든 결과 로우를 컬렉션 변수에 저장
+DECLARE
+	TYPE emp_rec IS TABLE OF emp%ROWTYPE;
+	v_emp_arr	emp_rec;
+BEGIN
+  -- 한 번의 실행으로 emp 테이블의 모든 로우를 배열에 읽어 들인다.
+	SELECT *
+		BULK COLLECT INTO v_emp_arr
+		FROM emp;
+	DBMS_OUTPUT.PUT_LINE('건수1: ' || v_emp_arr.COUNT);
+
+	-- LIMIT 키워드 없이도 ROWNUM을 사용하여 건수 제한이 가능하다.
+  -- 한 번의 실행으로 EMP 테이블의 로우 10건을 배열에 읽어 들인다.
+  -- 최대 10까지가 v_emp에 담길 수 있다.
+	SELECT *
+		BULK COLLECT INTO v_emp_arr
+		FROM emp
+	 WHERE ROWNUM <= 10;
+	DBMS_OUTPUT.PUT_LINE('건수2: ' || v_emp_arr.COUNT);
+END;
+
+
+/*
+-- emp 단건 데이터 새로운 TABLE(emp_tmp)로 INSERT 하기
+DECLARE
+  v_emp_rec emp%ROWTYPE;
+BEGIN
+  SELECT *
+    INTO v_emp_rec
+    FROM emp
+   where empno = 7499;
+
+  INSERT INTO emp_tmp
+    VALUES v_emp_rec;
+END;
+
+
+-- emp 다건 데이터 새로운 TABLE(emp_tmp)로 INSERT 하기
+DECLARE
+  TYPE emp_rec IS TABLE OF emp%ROWTYPE;
+  v_emp_rec emp_rec;
+BEGIN
+  SELECT *
+    BULK COLLECT INTO v_emp_rec
+    FROM emp
+   where empno > 7800;
+
+  FOR i IN v_emp_rec.FIRST..v_emp_rec.LAST
+  LOOP
+    INSERT INTO emp_tmp
+    VALUES v_emp_rec(i);
+  END LOOP;
+END;
+*/
+
+--===============================================================
+-- /* Example 11-20 LIMIT 키워드 없이 SAMPLE 사용하여 SELECT 건수 제한.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM LIMIT 키워드를 사용하지 않는 경우
+REM SAMPLE 또는 FETCH FIRST를 사용
+REM FETCH FIRST는 버전 12c 이상에서만 지원되며, 11.2까지는 지원되지 않는다.
+DECLARE
+  TYPE emp_tab_type IS TABLE OF emp%ROWTYPE ;
+  v_emp emp_tab_type ;
+BEGIN
+  -- SAMPLE절을 사용하여 건수 제한
+  -- SAMPLE 뒤의 숫자 10은 건수가 아니라 퍼센트(%)를 지정하는 숫자다.
+  -- 정확히 10%를 조회하는 것이 아니라 10%에 해당되는 건수를 추정하는 방법을 사용하므로
+  -- 실제로 조회되는 결과 건수는 매 실행시 마다 달라질 수 있다.
+  SELECT *
+    BULK COLLECT INTO v_emp
+    FROM emp SAMPLE (10) ;  -- 10%를 샘플링하여 조회한다.
+  DBMS_OUTPUT.PUT_LINE('SAMPLE 건수: '||v_emp.COUNT) ;
+END ;
+
+--===============================================================
+-- /* Example 11-21 LIMIT 절을 사용하여 SELECT 건수 제한.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	TYPE emp_rec IS TABLE OF emp%ROWTYPE;
+	v_emp_arr 		emp_rec;
+	c_size_limit	CONSTANT PLS_INTEGER := 10;
+	v_fetched			PLS_INTEGER;
+	CURSOR c IS
+		SELECT *
+			FROM emp;
+BEGIN
+	v_fetched := 0;
+	OPEN c; -- 커서 열기
+	LOOP
+		FETCH c BULK COLLECT INTO v_emp_arr
+		LIMIT c_size_limit;
+
+		DBMS_OUTPUT.PUT_LINE(v_emp_arr.COUNT ||'건');
+
+		IF 0 < v_emp_arr.COUNT THEN
+			FOR i IN v_emp_arr.FIRST..v_emp_arr.LAST
+			LOOP
+				DBMS_OUTPUT.PUT_LINE(CHR(9)||'순서 = ' || TO_CHAR(v_fetched+i, '99') ||
+													   '	사번 = ' ||v_emp_arr(i).empno || ', 이름 = ' ||
+	 													 v_emp_arr(i).ename);
+			END LOOP;
+			v_fetched := c%ROWCOUNT; -- 처리된 건수
+		END IF;
+
+		EXIT WHEN c%NOTFOUND; -- 더 이상의 데이터가 없으면 종료한다. 모든 처리가 끝난 후에 호출해야 한다.
+	END LOOP;
+	CLOSE c;
+END;
+
+/* 처리 결과
+10건
+	순서 =   1	사번 = 9000, 이름 = 홍길동
+	순서 =   2	사번 = 7369, 이름 = SMITH
+	순서 =   3	사번 = 7499, 이름 = ALLEN
+	순서 =   4	사번 = 7521, 이름 = WARD
+	순서 =   5	사번 = 7566, 이름 = JONES
+	순서 =   6	사번 = 7654, 이름 = MARTIN
+	순서 =   7	사번 = 7698, 이름 = BLAKE
+	순서 =   8	사번 = 7782, 이름 = CLARK
+	순서 =   9	사번 = 7788, 이름 = SCOTT
+	순서 =  10	사번 = 7839, 이름 = KING
+5건
+	순서 =  11	사번 = 7844, 이름 = TURNER
+	순서 =  12	사번 = 7876, 이름 = ADAMS
+	순서 =  13	사번 = 7900, 이름 = JAMES
+	순서 =  14	사번 = 7902, 이름 = FORD
+	순서 =  15	사번 = 7934, 이름 = MILLER
+*/
