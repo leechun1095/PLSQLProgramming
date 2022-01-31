@@ -3005,3 +3005,371 @@ END;
 	순서 =  14	사번 = 7902, 이름 = FORD
 	순서 =  15	사번 = 7934, 이름 = MILLER
 */
+
+--===============================================================
+-- /* Example 11-22 11-22.DML 문에서의 배열 처리.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DROP TABLE t ;
+
+REM 예제를 위한 테이블 생성
+CREATE TABLE t (
+  id   INTEGER PRIMARY KEY,
+  name VARCHAR(100)
+) ;
+
+PAUSE
+
+REM DML에서 배열 처리에 FOR ALL의 사용
+DECLARE
+  TYPE id_arr_type   IS TABLE OF PLS_INTEGER ;
+  TYPE name_arr_type IS TABLE OF t.name%TYPE ;
+  v_id_arr    id_arr_type   := id_arr_type(1,2,3,4,5) ;
+  v_name_arr  name_arr_type := name_arr_type('이순신', '강감찬', '을지문덕', '계백', '김유신') ;
+  v_name_arr2 name_arr_type := name_arr_type('강희안', '김홍도', '신윤복', '정선', '장승업') ;
+BEGIN
+  DELETE FROM t ;
+
+  -- INSERT문에서의 배열 처리. ".."을 사용하여 범위 지정
+	FORALL i IN v_id_arr.FIRST .. v_id_arr.LAST
+		INSERT INTO t(id, name) VALUES(v_id_arr(i), v_name_arr(i));
+	DBMS_OUTPUT.PUT_LINE('INSERT COUNT = ' || SQL%ROWCOUNT);
+
+  -- UPDATE문에서의 배열 처리. INDICES OF를 사용하여 범위 지정
+	FORALL i IN INDICES OF v_id_arr
+		UPDATE t
+			 SET name = v_arr_name(i)
+		 WHERE ID = v_id_arr(i);
+	DBMS_OUTPUT.PUT_LINE('UPDATE COUNT = ' || SQL%ROWCOUNT);
+
+	-- MERGE문에서의 배열 처리. ".."을 사용하여 범위 지정
+   FORALL i IN v_id_arr.FIRST .. v_id_arr.LAST  -- ".."을 이용한 범위 지정
+     MERGE INTO t
+     USING (
+       SELECT id
+       FROM t
+       WHERE id = v_id_arr(i)) u
+     ON (t.id = u.id)
+     WHEN MATCHED THEN
+       UPDATE SET t.name = v_name_arr2(i)
+     WHEN NOT MATCHED THEN
+       INSERT (id, name)
+       VALUES (v_id_arr(i), v_name_arr2(i));
+   DBMS_OUTPUT.PUT_LINE('MERGE  COUNT = '||SQL%ROWCOUNT) ;
+
+   -- DELETE문에서의 배열 처리. VALUES OF를 사용하여 범위 지정
+   FORALL i IN VALUES OF v_id_arr  -- VALUES OF 를 이용한 범위 지정
+     DELETE FROM t WHERE id = v_id_arr(i) ;
+   DBMS_OUTPUT.PUT_LINE('DELETE COUNT = '||SQL%ROWCOUNT) ;
+ END ;
+
+--===============================================================
+-- /* Example 11-23 FORALL 문에 EXCEPTION 미포함 시는 오류를 만나면 전체가 ROLLBACK 된다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+REM EXCEPTION 미포함시는 오류를 만나면 전체가 ROLLBACK된다.
+REM 예제에서는 PK 칼럼 id에 3이 2건이 중복되어 오류가 발생하고 전체가 ROLLBACK된다.
+
+DECLARE
+	TYPE ID_ARR_TYPE IS TABLE OF PLS_INTEGER ;
+	v_id_arr ID_ARR_TYPE := ID_ARR_TYPE(1,2,3,3,5) ; -- 중복 키 값(3이 두 개) 포함
+BEGIN
+	DELETE FROM t ;
+	COMMIT ;
+	-- INSERT 문의 배열 처리
+	FORALL i IN v_id_arr.FIRST .. v_id_arr.LAST
+	INSERT INTO T VALUES( v_id_arr(i), v_id_arr(i)) ;
+END ;
+/
+PAUSE
+SELECT COUNT(*) FROM t ;
+
+--===============================================================
+-- /* Example 11-24 FORALL 문에 EXCEPTION 포함시는 오류를 만나기 전까지는 정상으로 처리한다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM EXCEPTION 포함시는 오류를 만나기 전까지는 정상으로 처리한다.
+REM 예제에서는 (1,2,3,3,5) 중에서 처음 세 건은 정상 INSERT 된다.
+DECLARE
+ TYPE ID_ARR_TYPE IS TABLE OF PLS_INTEGER ;
+ v_id_arr ID_ARR_TYPE := ID_ARR_TYPE(1,2,3,3,5) ;
+BEGIN
+ -- INSERT문의 배열 처리
+ FORALL i IN v_id_arr.FIRST .. v_id_arr.LAST
+   INSERT INTO T VALUES( v_id_arr(i), v_id_arr(i)) ;
+ EXCEPTION WHEN OTHERS THEN
+
+END ;
+/
+
+PAUSE
+
+SELECT COUNT(*) FROM t ;
+
+--===============================================================
+-- /* Example 12-1 레코드의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 기본 예제
+DECLARE
+  TYPE emp_type IS RECORD ( -- 세 개의 필드를 가지는 레코드 선언
+    empno  NUMBER(4) NOT NULL := 0, -- NOT NULL 필드는 반드시 초깃값을 지정해야 함
+    ename  emp.ename%TYPE,          -- 칼럼 앵커를 사용한 필드 선언
+    job    VARCHAR2(9)              -- 필드의 데이터 타입을 직접 지정
+  ) ;
+  v_emp emp_type ;                 -- 타입을 사용하여 변수(인스턴스) 선언
+BEGIN
+  -- 레코드의 필드에 값을 할당
+  v_emp.empno := 9000 ;
+  v_emp.ename := '홍길동' ;
+  v_emp.job   := '의적' ;
+
+  DBMS_OUTPUT.PUT_LINE('EMPNO = ' || v_emp.empno) ;
+  DBMS_OUTPUT.PUT_LINE('ENAME = ' || v_emp.ename) ;
+  DBMS_OUTPUT.PUT_LINE('JOB   = ' || v_emp.job  ) ;
+END ;
+
+--===============================================================
+-- /* Example 12-2 로우 앵커를 사용한 레코드 변수 선언.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 로우 앵커를 사용하여 재작성
+DECLARE
+  v_emp emp%ROWTYPE ; -- 로우 앵커를 사용한 레코드 변수 선언
+BEGIN
+  -- 레코드의 필드에 값을 할당
+  v_emp.empno := 9000 ;
+  v_emp.ename := '홍길동' ;
+  v_emp.job   := '의적' ;
+
+  DBMS_OUTPUT.PUT_LINE('EMPNO = ' || v_emp.empno) ;
+  DBMS_OUTPUT.PUT_LINE('ENAME = ' || v_emp.ename) ;
+  DBMS_OUTPUT.PUT_LINE('JOB   = ' || v_emp.job  ) ;
+END ;
+
+--===============================================================
+-- /* Example 12-3 SELECT 문에 레코드 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 기본 예제
+DECLARE
+  TYPE emp_type IS RECORD (
+    empno  NUMBER(4) NOT NULL := 0, -- NOT NULL 필드는 반드시 초깃값을 지정해야 함
+    ename  emp.ename%TYPE,          -- 칼럼 앵커를 사용한 필드 선언
+    job    VARCHAR2(9)              -- 필드의 데이터 타입을 직접 지정
+  ) ;
+  v_emp emp_type ;
+BEGIN
+  -- INTO절에 세 개의 필드를 지정하는 대신 레코드 변수를 지정할 수 있다.
+  SELECT empno, ename, job
+    INTO v_emp
+    --INTO v_emp.empno, v_emp.ename, v_emp.job  -- 세 개의 변수를 윗줄의 레코드 하나로 대체
+    FROM emp
+   WHERE empno = 7788 ;
+
+  DBMS_OUTPUT.PUT_LINE('EMPNO = ' || v_emp.empno) ;
+  DBMS_OUTPUT.PUT_LINE('ENAME = ' || v_emp.ename) ;
+  DBMS_OUTPUT.PUT_LINE('JOB   = ' || v_emp.job  ) ;
+END ;
+
+--===============================================================
+-- /* Example 12-4 레코드의 필드명과 SELECT 되는 테이블의 칼럼명과는 일치하지 않아도 된다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 레코드의 필드명과 SELECT 되는 테이블의 칼럼명과는 일치하지 않아도 된다.
+DECLARE
+  TYPE emp_type IS RECORD (
+    emp_no    NUMBER(4),      -- empno 대신 emp_no 사용
+    emp_name  emp.ename%TYPE, -- ename 대신 emp_name 사용
+    job       VARCHAR2(10)    -- 데이터 타입과 길이는 호환성만 있으면 된다.
+  ) ;
+  v_emp emp_type ;
+BEGIN
+  -- SELECT되는 칼럼명과 이 값을 할당할 레코드 필드명이 같지 않아도 전혀 문제가 없다.
+  SELECT empno, ename, job
+    INTO v_emp
+    FROM emp
+   WHERE empno = 7788 ;
+
+  DBMS_OUTPUT.PUT_LINE('EMPNO = ' || v_emp.emp_no) ;
+  DBMS_OUTPUT.PUT_LINE('ENAME = ' || v_emp.emp_name) ;
+  DBMS_OUTPUT.PUT_LINE('JOB   = ' || v_emp.job) ;
+END ;
+
+--===============================================================
+-- /* Example 12-5 레코드 변수는 하나만 사용 가능하며, 다른 변수와 같이 사용할 수 없다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 레코드 변수는 하나만 사용 가능하며, 다른 변수와 같이 사용할 수 없다.
+DECLARE
+  -- 테이블 emp의 일부 칼럼을 레코드로 선언
+  TYPE emp_basic_info_type IS RECORD (
+    empno    emp.empno   %TYPE,
+    ename    emp.ename   %TYPE,
+    job      emp.job     %TYPE,
+    mgr      emp.mgr     %TYPE,
+    hiredate emp.hiredate%TYPE,
+    deptno   emp.deptno  %TYPE
+  ) ;
+  -- 테이블 emp의 나머지 칼럼을 레코드로 선언
+  TYPE emp_salary_info_type IS RECORD (
+    sal      emp.sal     %TYPE,
+    comm     emp.comm    %TYPE
+  ) ;
+
+  -- 레코드 변수
+  v_emp_basic  emp_basic_info_type ;
+  v_emp_salary emp_salary_info_type ;
+
+  -- 개별 스칼라 변수
+  v_sal    emp.sal     %TYPE ;
+  v_comm   emp.comm    %TYPE ;
+BEGIN
+  -- 두 개의 레코드 변수를 INTO절에 사용할 수는 없다.
+  -- 파싱 단계에서 다음의 오류가 발생한다.
+  -- PLS-00494: coercion into multiple record targets not supported
+  SELECT empno, ename, job, mgr, hiredate, deptno, sal, comm
+    INTO v_emp_basic, v_emp_salary
+    FROM emp
+   WHERE empno = 7788 ;
+
+  -- 레코드 변수와 스칼라 변수를 혼합하여 INTO절에 사용할 수도 없다.
+  -- 파싱 단계에서 다음의 오류가 발생한다.
+  -- PLS-00494: coercion into multiple record targets not supported
+  SELECT empno, ename, job, mgr, hiredate, deptno, sal, comm
+    INTO v_emp_basic, v_sal, v_comm
+    FROM emp
+   WHERE empno = 7788 ;
+END ;
+
+--===============================================================
+-- /* Example 12-6 레코드 변수의 각 필드에 값을 할당하는 방법.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 기본 예제
+REM 레코드 변수의 필드는 필드별로 값을 할당해야 한다.
+DECLARE
+  TYPE emp_rec IS RECORD (
+    empno emp.empno%TYPE,
+    ename emp.ename%TYPE
+  );
+
+  v_emp1 emp_rec;
+  v_emp2 emp_rec;
+  v_emp3 emp_rec;
+BEGIN
+  v_emp1.empno := 9000 ; v_emp1.ename := '홍길동'; -- 1. 필드별로 값을 할당
+  v_emp2 := v_emp1;                                -- 2. 다른 레코드를 복사
+  SELECT empno, ename INTO v_emp3                  -- 3. 쿼리 결과를 레코드에 저장
+    FROM emp
+   WHERE empno = 7788;
+END;
+
+--===============================================================
+-- /* Example 12-07.필드가 동일하더라도 타입명이 다른 레코드 간에는 할당 연산이 불가능하다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 필드가 동일하더라도 타입명이 다른 레코드 간에는 할당 연산이 불가능하다.
+REM 다음 예제에서 emp_rec1과 emp_rec2는 다른 타입이므로
+REM 할당 연산을 사용할 수 없다.
+DECLARE
+  TYPE emp_rec1 IS RECORD (
+    empno emp.empno%TYPE,
+    ename emp.ename%TYPE
+  );
+  TYPE emp_rec2 IS RECORD (
+    empno emp.empno%TYPE,
+    ename emp.ename%TYPE
+  );
+
+  v_emp1 emp_rec1;
+  v_emp2 emp_rec2;
+BEGIN
+  v_emp1 := v_emp2 ; -- 필드의 데이터 타입이 동일해도 레코드 타입이 다르므로 오류
+END;
+
+--===============================================================
+-- /* Example 12-08.레코드의 모든 필드를 한 번에 초기화하기 위해 사용자 정의 함수를 사용할 수 있다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 레코드의 모든 필드를 한 번에 초기화 하는 기능은 기본으로 제공되지 않는다.
+REM 필요하면 유사한 기능을 가지는 함수를 만들어 사용해야 한다.
+DECLARE
+  TYPE emp_rec IS RECORD (
+    empno emp.empno%TYPE,
+    ename emp.ename%TYPE
+  );
+
+  v_emp emp_rec;
+
+  -- 생성자 역할을 하는 함수를 만든다.
+  FUNCTION make_emp_rec(a_empno emp.empno%TYPE,
+                        a_ename emp.ename%TYPE) RETURN emp_rec
+  IS
+    v_rec emp_rec ;
+  BEGIN
+    v_rec.empno := a_empno ;
+    v_rec.ename := a_ename ;
+    RETURN v_rec ;
+  END ;
+
+BEGIN
+  v_emp := make_emp_rec('9000', '홍길동') ; -- 생성자 역할의 함수를 사용한다.
+END;
+
+--===============================================================
+-- /* Example 12-09.레코드와 컬렉션의 동시 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 레코드와 컬렉션을 혼합하여 동시에 사용하는 예제
+DECLARE
+  TYPE city_tab_type IS TABLE OF VARCHAR2(64) INDEX BY PLS_INTEGER ; -- 컬렉션
+  TYPE name_rec IS RECORD (                                      -- 레코드
+    first_name  VARCHAR2(30),
+    last_name   VARCHAR2(30)
+  ) ;
+  TYPE emp_rec IS RECORD (                                       -- 컬렉션과 레코드의 혼합
+    empno emp.empno%TYPE DEFAULT 1000,
+    ename name_rec,      -- 레코드가 레코드의 필드가 될 수 있다.
+    city  city_tab_type  -- 컬렉션이 레코드의 필드가 될 수 있다.
+  );
+  TYPE people_type IS VARRAY(10) OF name_rec ; -- 레코드의 컬렉션이 가능하다.
+  TYPE emp_type    IS VARRAY(10) OF emp_rec  ; -- 레코드의 컬렉션
+BEGIN
+  NULL ;
+END;
