@@ -3373,3 +3373,137 @@ DECLARE
 BEGIN
   NULL ;
 END;
+
+--===============================================================
+-- /* Example 13-01.묵시적 커서.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  v_name emp.ename%TYPE ;
+BEGIN
+  -- 묵시적 커서­
+  SELECT ename
+    INTO v_name
+    FROM emp
+   WHERE empno = 7788 ;
+
+  DBMS_OUTPUT.PUT_LINE('ENAME = '||v_name) ;
+END ;
+
+--===============================================================
+-- /* Example 13-02.명시적 커서.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  v_name emp.ename%TYPE ;
+
+	-- 명시적 커서를 선언
+	CURSOR ename_cursor IS
+		SELECT ENAME
+			FROM EMP
+		 WHERE EMPNO = 7788;
+BEGIN
+	-- 커서를 OPEN 한다.
+  OPEN ename_cursor;
+
+	-- SELECT 결과를 FETCH한다.
+	FETCH ename_cursor
+	 INTO v_name;
+  DBMS_OUTPUT.PUT_LINE('ENAME = '||v_name) ;
+
+	-- 커서를 CLOSE한다.
+	CLOSE ename_cursor;
+END ;
+
+--===============================================================
+-- /* Example 13-03.루프 문을 사용하여 여러 건을 FETCH.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_empno NUMBER;
+	v_ename emp.ename%TYPE;
+
+	CURSOR ename_cursor IS
+		SELECT empno, ename
+			FROM emp
+		 ORDER BY empno;
+BEGIN
+	OPEN ename_cursor;
+
+	LOOP
+		FETCH ename_cursor INTO v_empno, v_ename;
+		EXIT WHEN ename_cursor%NOTFOUND;
+		DBMS_OUTPUT.PUT_LINE('empno = '|| v_empno ||', ename = ' || v_ename);
+	END LOOP;
+
+	CLOSE ename_cursor;
+END;
+
+--===============================================================
+-- /* Example 13-04.BULK COLLECT를 사용하여 여러 건을 한 번에 FETCH.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	TYPE empno_arr IS TABLE OF NUMBER;
+	TYPE ename_arr IS TABLE OF emp.ename%TYPE;
+
+	v_empno empno_arr;
+	v_ename ename_arr;
+
+	-- 명시적 커서
+	CURSOR ename_cursor IS
+		SELECT empno, ename
+			FROM emp;
+BEGIN
+	-- 커서 OPEN
+	OPEN ename_cursor;
+
+	FETCH ename_cursor BULK COLLECT INTO v_empno, v_ename;
+	DBMS_OUTPUT.PUT_LINE('사원 수 = '|| v_ename.COUNT);
+
+	FOR i IN v_empno.FIRST..v_empno.LAST
+	LOOP
+		DBMS_OUTPUT.PUT_LINE('empno = '|| v_empno(i) ||', ename = ' || v_ename(i));
+	END LOOP;
+	CLOSE ename_cursor;
+END;
+
+--===============================================================
+-- /* Example 13-05.커서에 대한 ROWTYPE 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	CURSOR ename_cursor IS
+		SELECT empno, ename
+			FROM emp;
+	v_emprec ename_cursor%ROWTYPE;
+BEGIN
+	OPEN ename_cursor;
+
+	LOOP
+		FETCH ename_cursor INTO v_emprec;
+		EXIT WHEN ename_cursor%NOTFOUND;
+		DBMS_OUTPUT.PUT_LINE('empno = '|| v_emprec.empno ||', ename = ' || v_emprec.ename);
+	END LOOP;
+
+	CLOSE ename_cursor;
+END;
+
+--===============================================================
+-- /* Example 13-06.커서 FOR LOOP를 사용한 테이블 데이터 복제.SQL */
+--===============================================================
