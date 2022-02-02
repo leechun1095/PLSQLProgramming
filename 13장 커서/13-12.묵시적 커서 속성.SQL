@@ -1,0 +1,13 @@
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 묵시적 커서 속성
+DECLARE
+  v_rows PLS_INTEGER ;
+BEGIN
+  DELETE FROM emp WHERE empno = 7788 ;
+  v_rows := SQL%ROWCOUNT ; -- 묵시적 커서 속성 SQL%ROWCOUNT
+  DBMS_OUTPUT.PUT_LINE('삭제된 건수='||v_rows) ;
+  ROLLBACK ;
+END ;

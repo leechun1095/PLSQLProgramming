@@ -3507,3 +3507,492 @@ END;
 --===============================================================
 -- /* Example 13-06.커서 FOR LOOP를 사용한 테이블 데이터 복제.SQL */
 --===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM emp와 동일한 구조의 테이블 emp2 생성
+DROP TABLE emp2 ;
+CREATE TABLE emp2 AS SELECT * FROM EMP WHERE ROWNUM = 0 ;
+
+PAUSE
+
+REM emp2는 현재 빈 테이블이다.
+SELECT COUNT(*) FROM emp2;
+
+PAUSE
+
+REM 커서 FOR LOOP를 사용한 테이블 데이터 복제
+BEGIN
+  FOR c IN (SELECT * FROM emp)  -- 커서 FOR LOOP를 사용하여 테이블 복사
+  LOOP
+    INSERT INTO emp2 VALUES c ;
+  END LOOP ;
+END ;
+/
+
+PAUSE
+
+REM 테이블 emp의 모든 로우를 emp2로 복사해서 14건이 되었다.
+SELECT COUNT(*) FROM emp2;
+
+--===============================================================
+-- /* Example 13-07.묵시적 커서 FOR LOOP.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_total_pay NUMBER := 0;  -- 급여 합계 계산
+BEGIN
+	-- 묵시적 커서 FOR LOOP 사용
+	FOR t IN (
+		SELECT ename, hiredate, deptno, NVL(sal,0)+NVL(comm,0) total_pay
+			FROM emp
+		 WHERE deptno = 10
+	)
+	LOOP
+		DBMS_OUTPUT.PUT_LINE(
+			RPAD(t.ename, 6, ' ') || ', 입사일자=' || TO_CHAR(t.hiredate, 'YYYY-MM-DD') || ', 급여=' || t.total_pay
+		);
+		v_total_pay := v_total_pay + NVL(t.total_pay, 0);
+	END LOOP;
+	DBMS_OUTPUT.PUT_LINE('-------------------------------------');
+	DBMS_OUTPUT.PUT_LINE('급여 합계 = $' || v_total_pay);
+END;
+
+--===============================================================
+-- /* Example 13-08.커서 FOR LOOP 미사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM SELECT 문의 결과 저장을 위한 일반적인 변수 선언 방법
+REM 변수를 선언하고 사용해야 하는 불편함이 있고,
+REM 프로그램의 길이가 길어진다.
+DECLARE
+  v_ename     emp.ename   %TYPE ;
+  v_hiredate  emp.hiredate%TYPE ;
+  v_deptno    emp.ename   %TYPE ;
+  v_sal       emp.sal     %TYPE ;
+BEGIN
+  BEGIN
+    SELECT ename,
+           hiredate,
+           deptno,
+           sal
+      INTO v_ename,
+           v_hiredate,
+           v_deptno,
+           v_sal
+      FROM emp
+     WHERE empno = 7788 ;
+    DBMS_OUTPUT.PUT_LINE(v_ename   ||', '||
+                         v_hiredate||', '||
+                         v_deptno  ||', '||
+                         v_sal) ;
+  EXCEPTION WHEN NO_DATA_FOUND THEN
+    NULL ;
+  END ;
+END ;
+
+--===============================================================
+-- /* Example 13-09.커서 FOR LOOP 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 명백히 한 건만을 조회하는 경우라도
+REM 프로그램을 간단히 하기 위해 FOR LOOP 사용
+BEGIN
+  FOR t IN (SELECT ename,
+                   hiredate,
+                   deptno,
+                   sal
+              FROM emp
+             WHERE empno = 7788)
+  LOOP
+    DBMS_OUTPUT.PUT_LINE(t.ename   ||', '||
+                         t.hiredate||', '||
+                         t.deptno  ||', '||
+                         t.sal) ;
+  END LOOP ;
+END ;
+
+--===============================================================
+-- /* Example 13-10.명시적 커서 FOR LOOP.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_total_pay NUMBER := 0;  -- 급여 합계 계산
+	-- 앞의 예제에서 FOR문에 포함되었던 SELECT문을 커서 문으로 선언하여 사용
+	CURSOR emp_cursor IS
+	-- CURSOR FOR LOOP 에 사용된 컬럼에 계산식이 있는 경우 꼭 Alias를 사용해야함.
+	SELECT ename, hiredate, deptno, NVL(sal,0)+NVL(comm,0) total_pay
+		FROM emp
+	 WHERE deptno = 10;
+BEGIN
+	-- "(SELECT문)" 대신 위에서 선언한 커서명 emp_cursor를 사용
+	FOR t IN emp_cursor
+	LOOP
+		DBMS_OUTPUT.PUT_LINE(
+			RPAD(t.ename, 6, ' ') || ', 입사일자=' || TO_CHAR(t.hiredate, 'YYYY-MM-DD') || ', 급여=' || t.total_pay
+		);
+		v_total_pay := v_total_pay + NVL(t.total_pay, 0);
+	END LOOP;
+	DBMS_OUTPUT.PUT_LINE('-------------------------------------');
+	DBMS_OUTPUT.PUT_LINE('급여 합계 = $' || v_total_pay);
+END;
+
+--===============================================================
+-- /* Example 13-11.명시적 커서 속성.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 명시적 커서 속성
+DECLARE
+  CURSOR emp_cursor IS
+    SELECT ename, hiredate
+      FROM emp
+     WHERE deptno = 10
+     ORDER BY hiredate desc;
+BEGIN
+  FOR t IN emp_cursor
+  LOOP
+    DBMS_OUTPUT.PUT_LINE(RPAD(t.ename, 6,' ')||
+      ', 입사 일자='|| TO_CHAR(t.hiredate, 'YYYY-MM-DD')) ;
+    IF emp_cursor%ROWCOUNT >= 3 THEN -- 명시적 커서 속성 커서명%ROWCOUNT
+      EXIT ; -- 3건 이상인 경우 루프 종료하라는 의미
+    END IF ;
+  END LOOP ;
+END ;
+
+--===============================================================
+-- /* Example 13-12.묵시적 커서 속성.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 묵시적 커서 속성
+DECLARE
+  v_rows PLS_INTEGER ;
+BEGIN
+  DELETE FROM emp WHERE empno = 7788 ;
+  v_rows := SQL%ROWCOUNT ; -- 묵시적 커서 속성 SQL%ROWCOUNT
+  DBMS_OUTPUT.PUT_LINE('삭제된 건수='||v_rows) ;
+  ROLLBACK ;
+END ;
+
+--===============================================================
+-- /* Example 13-13.커서 칼럼의 앨리어스 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 커서의 칼럼이 표현식인데 앵커로 참조된다면
+REM 표현식 칼럼은 반드시 앨리어스를 사용해야 한다.
+DECLARE
+  -- 명시적 커서
+  CURSOR emp_cursor IS
+   SELECT empno           사번
+        , ename           이름
+        , sal+NVL(comm,0) 총급여 -- 앵커로 참조되는 칼럼이 표현식이라면 앨리어스가 필요
+     FROM emp ;
+  v_emp_rec emp_cursor%ROWTYPE ;
+BEGIN
+  OPEN emp_cursor ;
+
+  DBMS_OUTPUT.PUT_LINE('사번 이름       총급여') ;
+  DBMS_OUTPUT.PUT_LINE('==== ========== ======') ;
+  LOOP
+    FETCH emp_cursor INTO v_emp_rec ;
+    EXIT WHEN emp_cursor%NOTFOUND;
+    DBMS_OUTPUT.PUT_LINE(' ' ||TO_CHAR(v_emp_rec.사번, '9999') || ' ' ||
+                         RPAD(v_emp_rec.이름, 10) || ' ' ||
+                         TO_CHAR(v_emp_rec.총급여, '99999')) ;
+  END LOOP;
+
+  -- 커서를 CLOSE한다.
+  CLOSE emp_cursor ;
+END ;
+
+--===============================================================
+-- /* Example 13-14.커서를 매개변수로 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_name	emp.ename%TYPE;
+	v_empno NUMBER := 7788;
+
+	-- 매개변수 a_empno를 가지는 명시적 커서
+	CURSOR ename_cursor(a_empno NUMBER) IS
+		SELECT ename
+			FROM emp
+		 WHERE empno = a_empno;
+BEGIN
+	-- 매개변수를 사용하여 커서를 OPEN한다.
+	OPEN ename_cursor(v_empno);
+
+	-- SELECT 결과를 FETCH 한다.
+	FETCH ename_cursor
+	 INTO v_name;
+	DBMS_OUTPUT.PUT_LINE('이름 = ' || v_name);
+
+	CLOSE ename_cursor;
+END;
+
+--===============================================================
+-- /* Example 13-15.커서 매개변수를 사용하지 않고 글로벌 변수를 사용한 경우.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 커서 매개변수를 사용하지 않고 글로벌 변수를 사용한 경우
+REM 모듈화의 두 가지 원칙인 높은 응집도와 낮은 결합도를
+REM 정면으로 위배하는 나쁜 코딩 방법의 사례다.
+DECLARE
+  v_name  emp.ename%TYPE ;
+  v_empno NUMBER ;
+
+  -- 매개변수를 가지지 않는 커서
+  CURSOR ename_cursor IS
+   SELECT ename
+     FROM emp
+    WHERE empno = v_empno ; -- 매개변수로 상위 블록에 선언된 변수를 사용한다.
+BEGIN
+  v_empno := 7788 ;
+
+  -- 커서를 OPEN한다. 위에서 설정한 변수 v_empno의 값 7788이 커서 OPEN시에 사용된다.
+  OPEN ename_cursor ;
+
+  -- SELECT 결과를 FETCH한다.
+  FETCH ename_cursor
+   INTO v_name ;
+  DBMS_OUTPUT.PUT_LINE('이름 = '||v_name) ;
+
+  -- 커서를 CLOSE한다.
+  CLOSE ename_cursor ;
+END ;
+
+--===============================================================
+-- /* Example 13-16.커서 변수 선언.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 커서 변수 선언
+DECLARE
+  TYPE empcursor_type     IS REF CURSOR RETURN emp%ROWTYPE;     -- 강한 타입(테이블%ROWTYPE)
+  TYPE genericcursor_type IS REF CURSOR;                        -- 약한 타입
+
+  v_c1 empcursor_type;
+  v_c2 genericcursor_type;
+  v_c3 SYS_REFCURSOR;  -- 타입 선언 없이 사용 가능
+
+  TYPE empcursor_type2 IS REF CURSOR RETURN v_c1%ROWTYPE;       -- 강한 타입(변수%ROWTYPE)
+  v_c4 empcursor_type2;
+
+  CURSOR emp_cursor IS
+    SELECT empno, ename
+      FROM emp ;
+  TYPE empcursor_type3 IS REF CURSOR RETURN emp_cursor%ROWTYPE; -- 강한 타입(커서%ROWTYPE)
+  v_c5 empcursor_type3;
+
+  TYPE emp_rec IS RECORD (
+    empno emp.empno%TYPE,
+    ename emp.ename%TYPE
+  );
+  TYPE empcursor_type4 IS REF CURSOR RETURN emp_rec;            -- 강한 타입(레코드 타입)
+  v_c6 empcursor_type4;
+BEGIN
+  NULL;
+END;
+
+--===============================================================
+-- /* Example 13-17.강한 타입의 커서 변수는 반환형만 일치하면 어떤 SELECT 문도 OPEN할 수 있다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 강한 타입의 커서 변수는 반환되는 칼럼의 개수와 타입만 일치하면
+REM 어떤 SELECT 문에 대해서도 OPEN 가능하다.
+DECLARE
+  TYPE emp_rec IS RECORD (
+    empno emp.empno%TYPE,
+    ename emp.ename%TYPE,
+    sal   emp.sal  %TYPE
+  );
+  v_emprec emp_rec ; -- FETCH 결과를 저장할 레코드 변수
+  TYPE     emp_cursor_type IS REF CURSOR RETURN emp_rec; -- 커서 타입
+  v_empcur emp_cursor_type;                              -- 커서 변수
+BEGIN
+  -- 첫 번째 SQL문에 대해 커서 변수를 OPEN
+  OPEN v_empcur FOR SELECT empno, ename, sal FROM EMP WHERE deptno = 10 ;
+  LOOP
+    FETCH v_empcur INTO v_emprec ;
+    EXIT WHEN v_empcur%NOTFOUND ;
+    DBMS_OUTPUT.PUT_LINE('EMPNO='||v_emprec.empno||', ENAME='||v_emprec.ename||
+                         ', SAL='||v_emprec.sal) ;
+  END LOOP ;
+  CLOSE v_empcur ;
+
+  DBMS_OUTPUT.PUT_LINE(' ') ;
+
+  -- 두 번째 SQL문에 대해 커서 변수를 OPEN
+  OPEN v_empcur FOR SELECT empno, ename, sal+NVL(comm,0) FROM EMP WHERE deptno = 20 ;
+  LOOP
+    FETCH v_empcur INTO v_emprec ;
+    EXIT WHEN v_empcur%NOTFOUND ;
+    DBMS_OUTPUT.PUT_LINE('EMPNO='||v_emprec.empno||', ENAME='||v_emprec.ename||
+                         ', SAL='||v_emprec.sal) ;
+  END LOOP ;
+  CLOSE v_empcur ;
+END;
+
+--===============================================================
+-- /* Example 13-18.커서 변수는 서브프로그램의 매개 변수로 사용할 수 있다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 커서 변수는 서브 프로그램의 매개 변수로 사용할 수 있다.
+DECLARE
+  TYPE emp_rec IS RECORD (
+    empno emp.empno%TYPE,
+    ename emp.ename%TYPE
+  );
+  TYPE     emp_cursor_type IS REF CURSOR RETURN emp_rec; -- 레코드 타입의 커서 변수
+  v_empcur emp_cursor_type;                              -- 커서 변수
+
+  PROCEDURE print_emp(a_empcur emp_cursor_type) IS    -- 커서 변수를 프로시저의 매개변수로 사용
+    v_emprec emp_rec ;
+  BEGIN
+    LOOP
+      FETCH a_empcur INTO v_emprec ;
+      EXIT WHEN a_empcur%NOTFOUND ;
+      DBMS_OUTPUT.PUT_LINE('EMPNO=' ||v_emprec.empno||', ENAME=' || v_emprec.ename) ;
+    END LOOP ;
+  END ;
+BEGIN
+  OPEN v_empcur FOR SELECT empno, ename FROM EMP ;
+  print_emp(v_empcur) ; -- 커서를 매개변수로 전달
+  CLOSE v_empcur ;
+END;
+
+--===============================================================
+-- /* Example 13-19.약한 타입의 커서 변수는 반환형이 서로 다른 쿼리에 대해서도 사용할 수 있다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_cursor		SYS_REFCURSOR;		-- 약한 타입의 커서 변수
+	v_selector	CHAR;
+	v_deptno		NUMBER;
+
+	-- a_selector 값에 따라서 서로 다른 개수와 타입을 반환하는 SELECT문을 사용하여 커서를 OPEN
+	PROCEDURE open_cursor(a_cursor IN OUT SYS_REFCURSOR, a_selector CHAR, a_deptno NUMBER) IS
+	BEGIN
+		IF a_selector = 'E' THEN
+			OPEN a_cursor FOR SELECT * FROM emp WHERE deptno = a_deptno;
+		ELSE
+			OPEN a_cursor FOR SELECT * from dept WHERE deptno = a_deptno;
+		END IF;
+	END;
+
+	-- a_selector 값에 따라서 서로 다른 개수와 타입을 반환하는
+	-- 커서 변수에서 서로 다른 칼럼을 추출하여 화면에 출력
+	PROCEDURE print_cursor(a_cursor IN OUT SYS_REFCURSOR, a_selector CHAR) IS
+		v_emprec		emp%ROWTYPE;
+		v_deptrec		dept%ROWTYPE;
+	BEGIN
+		IF a_selector = 'E' THEN
+			LOOP
+				FETCH a_cursor INTO v_emprec;
+				EXIT WHEN a_cursor%NOTFOUND;
+				-- emp 테이블의 네 칼럼을 출력
+        DBMS_OUTPUT.PUT_LINE('EMPNO='||v_emprec.empno||', ENAME='||v_emprec.ename||
+                             ', JOB='||v_emprec.job  ||', SAL='  ||v_emprec.sal) ;
+			END LOOP;
+		ELSE
+			LOOP
+				FETCH a_cursor INTO v_deptrec;
+				EXIT WHEN a_cursor%NOTFOUND;
+				-- dept 테이블의 세 칼럼을 출력
+			 	DBMS_OUTPUT.PUT_LINE('DEPTNO='||v_deptrec.deptno||', DNAME='||v_deptrec.dname||
+														 ', LOC=' ||v_deptrec.loc) ;
+			END LOOP;
+		END IF;
+	END;
+BEGIN
+	-- dept 테이블을 출력하도록 커서를 연다.
+	v_selector := 'D';
+	v_deptno := 10;
+
+	open_cursor(v_cursor, v_selector, v_deptno);	-- 커서 오픈
+	print_cursor(v_cursor, v_selector); -- 커서 출력
+	CLOSE v_cursor;
+
+	DBMS_OUTPUT.PUT_LINE('----') ;
+
+	-- emp 테이블을 출력하도록 커서를 다시 연다.
+	v_selector := 'E';
+	v_deptno := 10;
+
+	open_cursor(v_cursor, v_selector, v_deptno);	-- 커서 오픈
+	print_cursor(v_cursor, v_selector); -- 커서 출력
+	CLOSE v_cursor;
+END;
+
+--===============================================================
+-- /* Example 13-20.SELECT FOR UPDATE.SQL */
+--===============================================================
+/*
+SELECT FOR UPDATE :
+ - SELECT문과 UPDATE 문의 사이에 시차가 존재하므로 동시에 여러 SQL문이 실행되는 경우
+	 한 트랜젝션의 SELECT문과 UPDATE문의 사이에 다른 트랜젝션이 실행될 수 있어서 데이터의 무결성이 깨지는 문제 발생할 수 있음
+ - SELECT문과 UPDATE문을 하나로 만들어 줄 수 있다면 무결성을 보장할 수 있다.
+ - 이 것이 SELECT FOR UPDATE문이다.
+ - 조회 대상 로우에 대해 SELECT와 동시에 락을 거는 방식으로 동작하여 SELECT문과 UPDATE문 사이에
+   다른 데이터 변경 거래가 끼어들 수 없도록 원천적으로 차단한다.
+ - 단점으로는 SELECT만 하고 UPDATE를 하지 않는 로우에 대해서도 락이 걸려서, 커밋이나 롤백이 수행되기 전까지는
+   락이 해제되지 않는다는 것이다. 이 때문에 프로그램의 동시성을 떨어뜨리는 부작용을 가지고 있다.
+*/
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	CURSOR emp_cursor IS
+		SELECT empno, ename, job, sal
+			FROM emp
+		 WHERE sal < 1500
+			 FOR UPDATE; -- 조회와 동시에 락을 건다.
+BEGIN
+	FOR e IN emp_cursor
+	LOOP
+		IF e.job = 'SALESMAN' THEN
+			UPDATE emp
+				 SET comm = comm * 1.1
+			 WHERE CURRENT OF emp_cursor; 	-- 현재 커서가 위치한 로우만을 UPDATE 한다.
+		END IF;
+	END LOOP;
+END;
