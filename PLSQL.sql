@@ -3996,3 +3996,133 @@ BEGIN
 		END IF;
 	END LOOP;
 END;
+
+--===============================================================
+-- /* Example 14-01.EXECUTE IMMEDIATE를 사용한 DDL, DML, TCL 실행.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM EXECUTE IMMEDIATE를 사용한 DDL, DML, DCL의 실행
+DECLARE
+  v_insert_stmt CONSTANT VARCHAR2(100) := 'INSERT INTO t VALUES(1, ''서울'')' ;
+BEGIN
+  -- DDL 실행. 리터럴 사용
+  BEGIN
+    EXECUTE IMMEDIATE 'DROP TABLE t' ;
+  EXCEPTION WHEN OTHERS THEN
+    NULL ; -- 테이블이 없을 때 발생하는 오류는 무시함
+  END ;
+  EXECUTE IMMEDIATE 'CREATE TABLE t(a NUMBER, b VARCHAR2(10))' ;
+
+  -- DML 실행. 문자열 변수 사용
+  EXECUTE IMMEDIATE v_insert_stmt ;
+
+  -- TCL 실행. 리터럴 사용
+  EXECUTE IMMEDIATE 'COMMIT' ;
+END ;
+
+--===============================================================
+-- /* Example 14-02.EXECUTE IMMEDIATE 문에서 쿼리 결과를 변수에 저장.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  v_query CONSTANT VARCHAR2(200) := 'SELECT empno, ename
+                                       FROM EMP
+                                      WHERE empno = 7788';
+  TYPE emp_type IS RECORD (
+    empno emp.empno%TYPE,
+    ename emp.ename%TYPE
+  );
+  v_rec     emp_type;       -- 레코드 변수
+  v_empno   emp.empno%TYPE; -- 스칼라 변수
+  v_ename   emp.ename%TYPE; -- 스칼라 변수
+
+  TYPE emp_arr IS TABLE OF emp_type;
+  v_emps emp_arr;           -- 레코드 컬렉션 변수
+BEGIN
+  -- INTO 스칼라 변수
+  EXECUTE IMMEDIATE v_query INTO v_empno, v_ename;
+  DBMS_OUTPUT.PUT_LINE(v_empno ||', '|| v_ename);
+
+  -- INTO 레코드 변수
+  EXECUTE IMMEDIATE v_query INTO v_rec;
+  DBMS_OUTPUT.PUT_LINE(v_rec.empno ||', '|| v_rec.ename);
+
+  -- INTO 레코드 컬렉션 변수
+  EXECUTE IMMEDIATE 'SELECT empno, ename FROM emp' BULK COLLECT INTO v_emps;
+  DBMS_OUTPUT.PUT_LINE('사원수: '||v_emps.COUNT);
+END ;
+
+--===============================================================
+-- /* Example 14-03.EXECUTE IMMEDIATE 문에서 바인드 변수 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 바인드 변수 사용
+REM 바인드 변수는 USING 절에 나열한다.
+REM 변수 모드로 IN과 OUT을 사용할 수 있으며, 생략시에는 IN이 사용된다.
+DECLARE
+  v_query CONSTANT VARCHAR2(200) := 'SELECT COUNT(*)
+                                       FROM emp
+                                      WHERE deptno = :deptno
+                                        AND job    = :job' ;
+  v_deptno emp.deptno%TYPE ;
+  v_cnt    PLS_INTEGER ;
+BEGIN
+  v_deptno := 20 ;
+  -- 바인드 값은 변수, 상수, 리터럴을 모두 사용할 수 있다.
+  EXECUTE IMMEDIATE v_query
+               INTO v_cnt
+              USING IN v_deptno, 'CLERK';
+  DBMS_OUTPUT.PUT_LINE('COUNT = '||v_cnt) ;
+END ;
+
+--===============================================================
+-- /* Example 14-04.바인드 변수 플레이스 홀더의 이름과 순서(익명 PLSQL 문이나 CALL 문이 아닐 경우).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 바인드 변수 플레이스 홀더의 이름과 순서
+REM 가. 익명 PL/SQL문도 아니고 CALL 문도 아닐 경우
+REM     바인드 변수의 사용 횟수만큼 USING 절에 값 제공
+DECLARE
+  v_ename_in  VARCHAR2(10) := 'Scott';
+  v_ename     VARCHAR2(10);
+  v_job       VARCHAR2(10) := 'ANALYST';
+BEGIN
+  EXECUTE IMMEDIATE 'SELECT ename
+                       FROM EMP
+                      WHERE ename IN (:ename, UPPER(:ename), LOWER(:ename), INITCAP(:ename))
+                        AND job = :job'
+          INTO v_ename
+          USING v_ename_in, v_ename_in, v_ename_in, v_ename_in, v_job;
+  DBMS_OUTPUT.PUT_LINE('이름=' || v_ename || ', 업무=' || v_job) ;
+END ;
+
+--===============================================================
+-- /* Example 14-05.바인드 변수 플레이스 홀더의 이름과 순서(익명 PLSQL 문이거나 CALL 문일 경우).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  c_stmt CONSTANT VARCHAR2(1000) :=
+    Q'<BEGIN
+        :a := :a + :b;
+        DBMS_OUTPUT.PUT_LINE('a='||:a||', b='||:b);
+       END;>';
+  v_a NUMBER := 2;
+  v_b NUMBER := 3;
+BEGIN
+  EXECUTE IMMEDIATE c_stmt USING IN OUT v_a, v_b;
+END ;
