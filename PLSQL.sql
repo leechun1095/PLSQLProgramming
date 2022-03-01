@@ -4351,3 +4351,590 @@ BEGIN
                     OUT v_dname;  -- 출력 변수(OUT 필수)
   DBMS_OUTPUT.PUT_LINE(v_ename||'의 소속 부서 = '||v_dname);
 END;
+
+--===============================================================
+-- /* Example 15-01.예외 미처리 시의 실행 결과.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 예외 미처리 시의 실행 결과
+DECLARE
+  v_value  number := 10 ;
+  v_zero   number := 0 ;
+  v_result number ;
+BEGIN
+  -- 0으로 나누기 하는 예외 발생
+  v_result := v_value / v_zero ;
+END ;
+
+--===============================================================
+-- /* Example 15-02.예외 처리 시의 실행 결과.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+-- 예외명은 표준이 정해져있다. 아무 예외명을 쓰면 오류남
+-- Java에서 Exception 처리하듯이 모두 싸잡아서 예외처리하는 예외명은 'OTHERS'
+
+REM 예외 미처리 시의 실행 결과
+DECLARE
+  v_value  number := 10 ;
+  v_zero   number := 0 ;
+  v_result number ;
+BEGIN
+  -- 0으로 나누기 하는 예외 발생
+  v_result := v_value / v_zero ;
+
+  -- 0으로 나눔에 대한 오류를 처리
+  EXCEPTION WHEN ZERO_DIVIDE THEN
+    DBMS_OUTPUT.PUT_LINE('0으로 나눔 예외 발생');
+END ;
+
+--===============================================================
+-- /* Example 15-03.DUP_VAL_ON_INDEX 예외 미처리 코드.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+BEGIN
+  -- 예외 처리를 하지 않았으므로 프로그램이 오류로 중단된다.
+  INSERT INTO dept(deptno, dname, loc)
+  VALUES (40, 'CONSULTING', 'MANHATTAN');
+END;
+
+--===============================================================
+-- /* Example 15-04.DUP_VAL_ON_INDEX 예외 처리 코드.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+BEGIN
+  -- 예외 처리를 하지 않았으므로 프로그램이 오류로 중단된다.
+  INSERT INTO dept(deptno, dname, loc)
+  VALUES (40, 'CONSULTING', 'MANHATTAN');
+
+  -- 예외 처리
+  EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN -- 키 중복 처리
+      DBMS_OUTPUT.PUT_LINE('키 값이 중복됩니다. 데이터는 INSERT 되지 않습니다.');
+END;
+
+--===============================================================
+-- /* Example 15-05.NO_DATA_FOUND 예외 미처리 코드.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  v_empno emp.empno%TYPE := 1000;
+  v_ename emp.ename%TYPE;
+BEGIN
+  -- 예외처리를 하지 않았으므로 프로그램이 오류로 중단된다.
+  SELECT ename
+    INTO v_ename
+    FROM emp
+   WHERE empno = v_empno;
+   DBMS_OUTPUT.PUT_LINE('사번 '||v_empno||'의 이름은 '||v_ename||'입니다.');
+END;
+
+--===============================================================
+-- /* Example 15-06.NO_DATA_FOUND 예외 처리 코드.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  v_empno emp.empno%TYPE := 1000;
+  v_ename emp.ename%TYPE;
+BEGIN
+  SELECT ename
+    INTO v_ename
+    FROM emp
+   WHERE empno = v_empno;
+   DBMS_OUTPUT.PUT_LINE('사번 '||v_empno||'의 이름은 '||v_ename||'입니다.');
+
+   -- 예외처리
+   EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      DBMS_OUTPUT.PUT_LINE('사번 '||v_empno||'인 사원은 존재하지 않습니다.');
+END;
+
+--===============================================================
+-- /* Example 15-07.TOO_MANY_ROWS 예외 미처리 코드.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  v_empno emp.empno%TYPE;
+  v_ename emp.ename%TYPE;
+BEGIN
+  -- 예외처리를 하지 않았으므로 프로그램이 오류로 중단된다.
+  SELECT empno, ename
+    INTO v_empno, v_ename
+    FROM emp
+   WHERE empno >= 7900;
+   DBMS_OUTPUT.PUT_LINE('사번: '||v_empno||', 이름: '||v_ename);
+END;
+
+--===============================================================
+-- /* Example 15-08.TOO_MANY_ROWS 예외 처리 코드.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  v_empno emp.empno%TYPE;
+  v_ename emp.ename%TYPE;
+BEGIN
+  -- 예외처리를 하지 않았으므로 프로그램이 오류로 중단된다.
+  SELECT empno, ename
+    INTO v_empno, v_ename
+    FROM emp
+   WHERE empno >= 7900;
+   DBMS_OUTPUT.PUT_LINE('사번: '||v_empno||', 이름: '||v_ename);
+
+  -- 예외처리
+  EXCEPTION
+    WHEN TOO_MANY_ROWS THEN
+      DBMS_OUTPUT.PUT_LINE('조회되는 건수가 한 건보다 많습니다.');
+END;
+
+--===============================================================
+-- /* Example 15-09.VALUE_ERROR 예외 미처리 코드.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  v_ename emp.ename%TYPE NOT NULL := ' ';
+  v_mgr   emp.mgr%TYPE NOT NULL := -1;
+BEGIN
+  -- KING은 상급자가 NULL이므로 SELECT 시 v_mgr(NOT NULL 변수)에 NULL이 할당된다.
+  -- 예외처리를 하지 않았으므로 프로그램이 오류로 중단된다.
+  SELECT ename, mgr
+    INTO v_ename, v_mgr
+    FROM emp
+   WHERE ename = 'KING';
+   DBMS_OUTPUT.PUT_LINE('이름은 '||v_ename||'입니다.');
+END;
+
+--===============================================================
+-- /* Example 15-10.OTHERS 예외처리기를 사용하여 VALUE_ERROR 예외 처리.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  v_ename emp.ename%TYPE NOT NULL := ' ';
+  v_mgr   emp.mgr%TYPE NOT NULL := -1;
+  v_code  NUMBER;
+  v_errm  VARCHAR2(64);
+BEGIN
+  -- KING은 상급자가 NULL이므로 SELECT 시 v_mgr(NOT NULL 변수)에 NULL이 할당된다.
+  SELECT ename, mgr
+    INTO v_ename, v_mgr
+    FROM emp
+   WHERE ename = 'KING';
+
+  -- 예외처리
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN -- SELECT 되는 건이 없음
+      DBMS_OUTPUT.PUT_LINE('사원이 존재하지 않습니다.');
+    WHEN TOO_MANY_ROWS THEN -- SELECT 되는 건이 한건보다 많음
+      DBMS_OUTPUT.PUT_LINE('조회되는 건수가 한 건보다 많습니다.');
+    WHEN OTHERS THEN
+      v_code := SQLCODE;
+      v_errm := SUBSTR(SQLERRM, 1, 64);
+      DBMS_OUTPUT.PUT_LINE('오류가 발생했습니다.');
+      DBMS_OUTPUT.PUT_LINE('오류 코드 '|| v_code || ': '|| v_errm);
+--      DBMS_OUTPUT.PUT_LINE('오류가 발생했습니다.');
+--      DBMS_OUTPUT.PUT_LINE('오류 코드 '|| SQLCODE || ': '|| SUBSTR(SQLERRM, 1, 64));
+END;
+
+--===============================================================
+-- /* Example 15-11.사용자 정의 예외명.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 사용자 정의 예외명
+DECLARE
+  no_emp_found EXCEPTION ; -- 사용자 지정 예외 선언
+  v_cnt        PLS_INTEGER ;
+  v_empno      emp.empno%TYPE ;
+BEGIN
+  v_empno := -1 ; -- 존재하지 않는 사원 번호
+  -- 사원이 존재하는 지 확인한다.
+  SELECT COUNT(*)
+    INTO v_cnt
+    FROM emp
+   WHERE EMPNO = v_empno ;
+
+  IF v_cnt = 0 THEN -- 사원이 존재하지 않으면 사용자 예외 발생
+    RAISE no_emp_found ;
+  END IF ;
+
+  UPDATE emp
+     SET SAL = SAL*1.05
+   WHERE EMPNO = v_empno ;
+EXCEPTION
+  WHEN no_emp_found THEN -- 사용자 지정 예외를 처리
+    DBMS_OUTPUT.PUT_LINE('처리할 사원이 존재하지 않습니다.') ;
+END ;
+
+--===============================================================
+-- /* Example 15-12.RAISE_APPLICATION_ERROR를 사용하여 예외를 발생.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM RAISE_APPLICATION_ERROR를 사용하여 예외를 발생
+BEGIN
+  RAISE_APPLICATION_ERROR(-20100, '사용자 지정 예외');
+END ;
+
+--===============================================================
+-- /* Example 15-13.OTHERS를 사용하여 RAISE_APPLICATION_ERROR에 의해 발생된 예외를 처리.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+--  v_deptno  dept.deptno%TYPE := 30; -- 정상 데이터
+  v_deptno  dept.deptno%TYPE := 50; -- 부서번호 50은 존재하지 않음
+  v_empno   emp.empno%TYPE := 7900; -- 정상 데이터
+--	v_empno  emp.empno  %TYPE := 7901 ; -- 사번 7901은 존재하지 않음
+  v_dname   dept.dname%TYPE;
+  v_ename   emp.ename%TYPE;
+BEGIN
+  SELECT MAX(dname) dname
+    INTO v_dname
+    FROM dept
+   WHERE deptno = v_deptno;
+
+  IF v_dname IS NULL THEN
+    RAISE_APPLICATION_ERROR(-20001, '부서번호 '||v_deptno||'이 존재하지 않습니다.');
+  END IF;
+
+  BEGIN
+    SELECT ename
+      INTO v_ename
+      FROM emp
+     WHERE empno = v_empno;
+
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20002, '사원번호 '||v_empno||'이 존재하지 않습니다.');
+  END;
+
+  DBMS_OUTPUT.PUT_LINE('부서와 사원 데이터에 이상이 없습니다.');
+
+EXCEPTION
+  WHEN OTHERS THEN
+    IF SQLCODE = -20001 THEN
+      DBMS_OUTPUT.PUT_LINE('부서 오류');
+      DBMS_OUTPUT.PUT_LINE(SQLERRM);
+    ELSIF SQLCODE = -20002 THEN
+      DBMS_OUTPUT.PUT_LINE('사원 오류');
+      DBMS_OUTPUT.PUT_LINE(SQLERRM);
+    END IF;
+END ;
+
+--===============================================================
+-- /* Example 15-14.오라클 오류번호 ORA-01847을 예외명 invalide_date와 연결.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 오라클 오류번호 "ORA-01847"을 예외명 invalide_date와 연결
+DECLARE
+  invalide_date EXCEPTION;    -- 사용자 지정 예외
+  PRAGMA EXCEPTION_INIT(invalide_date, -1847); -- ORA-01847과 연결
+  -- ORA-01847: 달의 날짜는 1에서 말일 사이어야 합니다.
+  v_date DATE;
+BEGIN
+  -- 오류 유발
+  v_date := TO_DATE('2000-12-32', 'YYYY-MM-DD');
+EXCEPTION
+  WHEN invalide_date THEN
+    DBMS_OUTPUT.PUT_LINE(SQLCODE);
+    DBMS_OUTPUT.PUT_LINE(SQLERRM);
+    DBMS_OUTPUT.PUT_LINE('날짜 오류가 검출되었습니다.');
+END;
+
+--===============================================================
+-- /* Example 15-15.오류번호 20001를 예외명 user_defined_exception과 연결.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 오류번호 20001를 예외명 user_defined_exception과 연결
+DECLARE
+  user_defined_exception EXCEPTION; -- 사용자 지정 예외
+  PRAGMA EXCEPTION_INIT(user_defined_exception, -20001);  -- ORA-20001과 연결
+BEGIN
+  RAISE_APPLICATION_ERROR(-20001, '사용자 지정 예외가 발생했습니다.');
+EXCEPTION
+  WHEN user_defined_exception THEN
+    DBMS_OUTPUT.PUT_LINE(SQLCODE);
+    DBMS_OUTPUT.PUT_LINE(SQLERRM);
+END;
+
+--===============================================================
+-- /* Example 15-16.FORMAT_ERROR_BACKTRACE를 사용한 오류 메시지 출력.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 오류 조회 함수 FORMAT_ERROR_BACKTRACE를 사용한 오류 메시지 출력
+DECLARE
+  PROCEDURE p IS
+  BEGIN
+    RAISE_APPLICATION_ERROR(-20001, '사용자 지정 예외');
+  END;
+BEGIN
+  p;
+EXCEPTION
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE(SQLERRM);
+    DBMS_OUTPUT.PUT_LINE(DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+END;
+
+--===============================================================
+-- /* Example 15-17.FORMAT_ERROR_STACK을 사용한 오류 메시지 출력.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 오류 조회 함수 FORMAT_ERROR_STACK을 사용한 오류 메시지 출력
+REM SQLERRM과 FORMAT_ERROR_STACK은 동일한 메시지를 보여주지만,
+REM FORMAT_ERROR_STACK이 가질 수 있는 메시지가 더 길다.
+DECLARE
+  PROCEDURE p IS
+  BEGIN
+    RAISE_APPLICATION_ERROR(-20001, '사용자 지정 예외');
+  END;
+BEGIN
+  p;
+EXCEPTION
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE(SQLERRM);
+    DBMS_OUTPUT.PUT_LINE(DBMS_UTILITY.FORMAT_ERROR_STACK);
+END;
+
+--===============================================================
+-- /* Example 15-18.FORMAT_ERROR_STACK를 사용한 오류 스택 출력(프로시저 p2).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 오류 조회 함수 FORMAT_ERROR_STACK를 사용한 오류 스택 출력
+REM 프로시저 p2
+CREATE OR REPLACE PROCEDURE p2 IS
+BEGIN
+  DBMS_OUTPUT.PUT_LINE(DBMS_UTILITY.FORMAT_CALL_STACK);
+  RAISE_APPLICATION_ERROR(-20001, '사용자 지정 예외');
+END;
+
+--===============================================================
+-- /* Example 15-19.FORMAT_ERROR_STACK를 사용한 오류 스택 출력(프로시저 p1).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 오류 조회 함수 FORMAT_ERROR_STACK를 사용한 오류 스택 출력
+REM 프로시저 p1
+CREATE OR REPLACE PROCEDURE p1 IS
+BEGIN
+  p2;
+EXCEPTION
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE(SQLERRM);
+    DBMS_OUTPUT.PUT_LINE(DBMS_UTILITY.FORMAT_CALL_STACK);
+END;
+
+--===============================================================
+-- /* Example 15-20.FORMAT_ERROR_STACK를 사용한 오류 스택 출력(프로시저 p1 실행).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 오류 조회 함수 FORMAT_ERROR_STACK를 사용한 오류 스택 출력
+REM 프로시저 p1 실행
+SET LINESIZE 200
+EXEC p1
+
+--===============================================================
+-- /* Example 15-21.예외 처리에서 주로 하는 작업(1.트랜잭션 마무리).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 예외 처리에서 주로 하는 작업
+REM 1. 트랜잭션 마무리(주로 ROLLBACK을 수행함)
+DECLARE
+  v_sal  NUMBER ;
+  v_comm NUMBER ;
+BEGIN
+  -- 정상 수행
+  SELECT sal INTO v_sal
+    FROM emp
+   WHERE ename = 'SMITH' ;
+
+  UPDATE emp
+     SET comm = v_sal * 0.05
+   WHERE ename = 'SMITH' ;
+
+  -- SELECT 문에서 NO_DATA_FOUND 예외 발생(ENAME='Martin'은 없음).
+  SELECT sal INTO v_sal
+    FROM emp
+   WHERE ename = 'Martin' ;
+
+  UPDATE emp
+     SET comm = v_sal * 0.05
+   WHERE ename = 'Martin' ;
+
+-- NO_DATA_FOUND 예외 처리기
+EXCEPTION WHEN NO_DATA_FOUND THEN
+  -- 트랜잭션 취소
+  ROLLBACK ;
+END ;
+
+--===============================================================
+-- /* Example 15-22.예외 처리에서 주로 하는 작업(2.변수나 반환 값 지정).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 예외 처리에서 주로 하는 작업
+REM 2. 변수나 반환 값 지정
+DECLARE
+  v_name  VARCHAR2(100);
+BEGIN
+  BEGIN
+    SELECT ename
+      INTO v_name
+      FROM emp
+     WHERE empno = -1;  -- 사원 번호 -1은 존재하지 않음
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      -- 사원 미존재 시 사원명을 특정 값으로 함
+      v_name := '<존재하지 않는 사원>' ;
+  END;
+  DBMS_OUTPUT.PUT_LINE('사원명 : ' || v_name) ;
+END;
+
+--===============================================================
+-- /* Example 15-23.예외 처리에서 주로 하는 작업(3.1.디버깅 정보 출력).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 예외 처리에서 주로 하는 작업
+REM 3. 디버깅 정보 출력
+DECLARE
+  v_name  VARCHAR2(100);
+  v_code  NUMBER;
+  v_errm  VARCHAR2(64);
+BEGIN
+  SELECT ename
+    INTO v_name
+    FROM emp
+   WHERE empno = -1;
+EXCEPTION
+  WHEN OTHERS THEN
+    v_code := SQLCODE;
+    v_errm := SUBSTR(SQLERRM, 1, 64);
+    DBMS_OUTPUT.PUT_LINE('오류 코드 ' || v_code || ': ' || v_errm);
+END;
+
+--===============================================================
+-- /* Example 15-24.예외 처리에서 주로 하는 작업(3.2.예외 미처리시의 출력 형식).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 예외 처리에서 주로 하는 작업
+REM 3. 디버깅 정보 출력
+REM 예외 미처리시의 출력 형식
+DECLARE
+  PROCEDURE p IS
+  BEGIN
+    raise_application_error(-20001, '사용자 지정 예외') ;
+  END ;
+BEGIN
+  p ;
+END ;
+
+--===============================================================
+-- /* Example 15-25.예외 처리에서 주로 하는 작업(3.3.SQLERRM보다 상세한 오류 메시지 출력).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 예외 처리에서 주로 하는 작업
+REM 3. 디버깅 정보 출력
+REM 동일 프로그램에 대해 단순한 SQLERRM보다 상세한 오류 메시지 출력
+DECLARE
+  PROCEDURE p IS
+  BEGIN
+    RAISE_APPLICATION_ERROR(-20001, '사용자 지정 예외') ;
+  END ;
+BEGIN
+  p ;
+EXCEPTION WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM) ;
+  DBMS_OUTPUT.PUT_LINE(DBMS_UTILITY.FORMAT_ERROR_BACKTRACE) ;
+END ;
+
+--===============================================================
+-- /* Example 15-26.예외 처리에서 주로 하는 작업(4.오류를 무시하고 계속 진행).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 예외 처리에서 주로 하는 작업
+REM 4. 오류를 무시하고 계속 진행
+DECLARE
+  v_name  VARCHAR2(100):= '<존재하지 않는 사원>';
+BEGIN
+  BEGIN
+    SELECT ename
+      INTO v_name
+      FROM emp
+     WHERE empno = -1;
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      -- 예외 무시
+      NULL ;
+  END;
+  DBMS_OUTPUT.PUT_LINE('사원명 : ' || v_name) ;
+END;
