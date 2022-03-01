@@ -4126,3 +4126,228 @@ DECLARE
 BEGIN
   EXECUTE IMMEDIATE c_stmt USING IN OUT v_a, v_b;
 END ;
+
+--===============================================================
+-- /* Example 14-06.커서 변수를 사용하는 동적 SQL.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  TYPE empcur_type IS REF CURSOR;
+  v_emp_cur       empcur_type; --커서 변수
+  emp_rec         emp%ROWTYPE;
+  v_stmt          VARCHAR2(200);
+  v_empno         NUMBER;
+BEGIN
+  -- 실행할 동적 SQL문
+  v_stmt := 'SELECT * FROM emp WHERE empno = :empno';
+  v_empno := 7788;  -- 바인드 변수의 값으로 사용할 사번
+
+  -- 쿼리문 v_stmt에 대한 v_emp_cur 커서를 OPEN
+  OPEN v_emp_cur FOR v_stmt USING v_empno;
+
+  -- 결과 로우를 한 건씩 FETCH
+  LOOP
+    FETCH v_emp_cur INTO emp_rec;
+    EXIT WHEN v_emp_cur%NOTFOUND;
+  END LOOP;
+
+  DBMS_OUTPUT.PUT_LINE('이름=' || emp_rec.ename || ', 사번=' || emp_rec.empno) ;
+  -- 사용 완료된 커서를 CLOSE
+  CLOSE v_emp_cur;
+END;
+
+--===============================================================
+-- /* Example 14-07.DBMS_SQL을 사용한 SELECT 문 처리.SQL (나중에 다시 보자..) */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM DBMS_SQL을 사용한 SELECT 문 처리
+DECLARE
+  v_cursor_id NUMBER;
+  v_sql_stmt  VARCHAR2(4000) := Q'<SELECT *
+                                     FROM emp
+                                    WHERE deptno   = :deptno
+                                      AND hiredate >= TO_DATE(:hiredate, 'YYYY-MM-DD')>' ;
+
+  TYPE vc_array IS TABLE OF VARCHAR2(100);
+  v_bind_var    vc_array ;
+  v_bind_val    vc_array ;
+  v_ret         NUMBER;
+
+  v_desc_tab    DBMS_SQL.DESC_TAB;
+  v_col_cnt     PLS_INTEGER ;
+  v_str_var     VARCHAR2(100);
+  v_num_var     NUMBER;
+  v_date_var    DATE;
+  v_row_cnt     PLS_INTEGER ;
+BEGIN
+  -- 바인드 변수와 값 목록
+  v_bind_var := vc_array('deptno', 'hiredate') ;   -- 바인드 변수
+  v_bind_val := vc_array('10'    , '1981-07-01') ; -- 바인드 값
+
+  -- SQL 커서를 열고 커서 번호를 반환받는다.
+  v_cursor_id := DBMS_SQL.OPEN_CURSOR;
+
+  -- SQL을 파싱한다.
+  DBMS_SQL.PARSE(v_cursor_id, v_sql_stmt, DBMS_SQL.NATIVE);
+
+  -- 바인드 변수에 값을 바인드 한다.
+  FOR i IN 1 .. v_bind_var.COUNT LOOP
+    DBMS_SQL.BIND_VARIABLE(v_cursor_id, v_bind_var(i), v_bind_val(i));
+  END LOOP;
+
+  -- SELECT문의 칼럼 정보를 가져온다.
+  DBMS_SQL.DESCRIBE_COLUMNS(v_cursor_id, v_col_cnt, v_desc_tab);
+
+  -- SELECT될 칼럼을 정의한다.
+  FOR i IN 1 .. v_col_cnt LOOP
+    IF    v_desc_tab(i).col_type = DBMS_SQL.NUMBER_TYPE THEN -- NUMBER형 칼럼
+      DBMS_SQL.DEFINE_COLUMN(v_cursor_id, i, v_num_var);
+    ELSIF v_desc_tab(i).col_type = DBMS_SQL.DATE_TYPE THEN   -- 일시간형 칼럼
+      DBMS_SQL.DEFINE_COLUMN(v_cursor_id, i, v_date_var);
+    ELSE                                                     -- 그 외는 모두 문자형으로 처리
+      DBMS_SQL.DEFINE_COLUMN(v_cursor_id, i, v_str_var, 100);
+    END IF;
+  END LOOP;
+
+  -- 커서를 실행한다.
+  v_ret := DBMS_SQL.EXECUTE(v_cursor_id);
+
+  -- 값을 출력
+  v_row_cnt := 0 ;
+  WHILE DBMS_SQL.FETCH_ROWS(v_cursor_id) > 0
+  LOOP
+    v_row_cnt := v_row_cnt + 1 ;
+    DBMS_OUTPUT.PUT_LINE(v_row_cnt||'번째 로우') ;
+    FOR i IN 1 .. v_col_cnt LOOP
+      IF (v_desc_tab(i).col_type = DBMS_SQL.NUMBER_TYPE) THEN  -- NUMBER형 칼럼 값
+        DBMS_SQL.COLUMN_VALUE(v_cursor_id, i, v_num_var);
+        DBMS_OUTPUT.PUT_LINE(CHR(9)||rpad(v_desc_tab(i).col_name, 8, ' ') || ' : ' || v_num_var) ;
+      ELSIF (v_desc_tab(i).col_type = DBMS_SQL.DATE_TYPE) THEN -- 일시간형 칼럼 값
+        DBMS_SQL.COLUMN_VALUE(v_cursor_id, i, v_date_var);
+        DBMS_OUTPUT.PUT_LINE(CHR(9)||rpad(v_desc_tab(i).col_name, 8, ' ') || ' : ' ||
+                             TO_CHAR(v_date_var,'YYYY-MM-DD')) ;
+      ELSE                                                     -- 그 외는 모든 문자형 값
+        DBMS_SQL.COLUMN_VALUE(v_cursor_id, i, v_str_var);
+        DBMS_OUTPUT.PUT_LINE(CHR(9)||rpad(v_desc_tab(i).col_name, 8, ' ') || ' : ' || v_str_var) ;
+      END IF;
+    END LOOP;
+  END LOOP;
+
+  -- 커서를 닫는다.
+  DBMS_SQL.CLOSE_CURSOR(v_cursor_id) ;
+END;
+
+--===============================================================
+-- /* Example 14-08.DBMS_SQL을 사용한 DML 문 처리.SQL (나중에 다시 보자..) */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM DBMS_SQL을 사용한 DML 문 처리
+DECLARE
+  v_cursor_id NUMBER;
+  v_sql_stmt  VARCHAR2(4000) := Q'<INSERT INTO emp(empno, ename, job, mgr,
+                                           hiredate, sal, comm, deptno)
+                                     VALUES(:empno, :ename, :job, :mgr,
+                                         SYSDATE, :sal, :comm, :deptno)
+                                       RETURNING hiredate into :hiredate>';
+
+  v_emp       emp%ROWTYPE;
+  v_ret       NUMBER;
+
+  v_desc_tab  DBMS_SQL.DESC_TAB;
+  v_col_cnt   PLS_INTEGER ;
+  v_str_var   VARCHAR2(100);
+  v_num_var   NUMBER;
+  v_date_var  DATE;
+  v_row_cnt   PLS_INTEGER ;
+BEGIN
+  -- INSERT할 값
+  v_emp.empno    := 7000 ;
+  v_emp.ename    := '이순신' ;
+  v_emp.job      := '군인' ;
+  v_emp.mgr      := NULL ;
+  v_emp.hiredate := NULL ;     -- hiredate는 SYSDATE를 반환받음
+  v_emp.sal      := 9999 ;
+  v_emp.comm     := NULL ;
+  v_emp.deptno   := 40 ;
+
+  -- 기존 테스트 데이터 삭제
+  DELETE FROM emp WHERE empno = v_emp.empno ;
+
+  -- SQL 커서를 열고 커서 번호를 반환받는다.
+  v_cursor_id := DBMS_SQL.OPEN_CURSOR;
+
+  -- SQL을 파싱한다.
+  DBMS_SQL.PARSE(v_cursor_id, v_sql_stmt, DBMS_SQL.NATIVE);
+
+  -- 바인드 변수에 값을 바인드 한다.
+  DBMS_SQL.BIND_VARIABLE(v_cursor_id, 'empno'   , v_emp.empno   );
+  DBMS_SQL.BIND_VARIABLE(v_cursor_id, 'ename'   , v_emp.ename   );
+  DBMS_SQL.BIND_VARIABLE(v_cursor_id, 'job'     , v_emp.job     );
+  DBMS_SQL.BIND_VARIABLE(v_cursor_id, 'mgr'     , v_emp.mgr     );
+  DBMS_SQL.BIND_VARIABLE(v_cursor_id, 'hiredate', v_emp.hiredate);
+  DBMS_SQL.BIND_VARIABLE(v_cursor_id, 'sal'     , v_emp.sal     );
+  DBMS_SQL.BIND_VARIABLE(v_cursor_id, 'comm'    , v_emp.comm    );
+  DBMS_SQL.BIND_VARIABLE(v_cursor_id, 'deptno'  , v_emp.deptno  );
+
+  -- 커서를 실행한다.
+  v_ret := DBMS_SQL.EXECUTE(v_cursor_id);
+
+  -- OUT 변수 값을 받음
+  DBMS_SQL.VARIABLE_VALUE(v_cursor_id, 'hiredate', v_emp.hiredate); -- RETURNING절의 반환값
+  DBMS_OUTPUT.PUT_LINE(v_emp.ename || '의 입사일 : '||TO_CHAR(v_emp.hiredate, 'YYYY-MM-DD')) ;
+
+  -- 커서를 닫는다.
+  DBMS_SQL.CLOSE_CURSOR(v_cursor_id) ;
+END;
+/
+
+PAUSE
+REM 테스트 데이터를 삭제한다.
+DELETE FROM emp WHERE empno = 7000 ;
+COMMIT ;
+
+--===============================================================
+-- /* Example 14-09.동적 PLSQL.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+  v_stmt    VARCHAR2(1000);
+  v_empno   emp.empno%TYPE;
+  v_ename   emp.ename%TYPE;
+  v_dname   dept.dname%TYPE;
+BEGIN
+  -- 실행할 동적 PL/SQL문
+  -- 사번을 입력으로 하여 사원명과 소속 부서를 출력
+  v_stmt := 'DECLARE
+               vv_ename emp.ename%TYPE;
+               vv_dname dept.dname%TYPE;
+             BEGIN
+               DBMS_OUTPUT.PUT_LINE(''조회할 사번 = '' ||:empno);
+               SELECT ename, dname
+                 INTO vv_ename, vv_dname
+                 FROM emp e, dept d
+                WHERE e.empno = :empno
+                  AND e.deptno = d.deptno;
+               :ename := vv_ename; -- 무슨 의미지?..
+               :dname := vv_dname; -- 무슨 의미지?..
+             END;';
+  v_empno := 7788;
+  -- 동적 PL/SQL 실행
+  EXECUTE IMMEDIATE v_stmt
+              USING IN  v_empno,  -- 입력 변수(IN 생략 가능)
+                    OUT v_ename,  -- 출력 변수(OUT 필수)
+                    OUT v_dname;  -- 출력 변수(OUT 필수)
+  DBMS_OUTPUT.PUT_LINE(v_ename||'의 소속 부서 = '||v_dname);
+END;
