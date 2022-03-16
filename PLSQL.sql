@@ -4938,3 +4938,220 @@ BEGIN
   END;
   DBMS_OUTPUT.PUT_LINE('사원명 : ' || v_name) ;
 END;
+
+--===============================================================
+-- /* Example 17-01.저장 함수의 구조.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 저장 함수의 구조
+CREATE OR REPLACE FUNCTION get_wage(a_empno NUMBER)
+  RETURN NUMBER
+-- 사원의 급여와 커미션의 합을 반환하는 함수
+IS  -- 선언부 시작. IS 대신 AS를 사용할 수 있음
+  v_wage NUMBER ;
+BEGIN  -- 실행부 시작
+  -- 사번이 a_empno인 사원의 급여와 커미션의 합을 조회한다.
+  SELECT sal + NVL(comm,0) comm
+    INTO v_wage
+    FROM emp
+   WHERE empno = a_empno ;
+  -- 급여를 반환한다.
+  RETURN v_wage ;
+EXCEPTION  -- 예외처리부 시작
+  WHEN NO_DATA_FOUND THEN
+    -- 사원이 존재하지 않을 경우는 -1을 반환한다.
+    RETURN -1 ;
+END ;
+
+--===============================================================
+-- /* Example 17-02.네 개의 매개변수를 가지는 저장 함수.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 4개의 매개변수를 가지는 저장 함수
+CREATE OR REPLACE FUNCTION f(a_empno NUMBER, a_ename VARCHAR2, a_hiredate DATE, a_deptno NUMBER)
+RETURN VARCHAR2
+AS
+BEGIN
+  NULL ;
+END ;
+
+--===============================================================
+-- /* Example 17-03.매개변수가 없는 함수.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+CREATE OR REPLACE FUNCTION f RETURN VARCHAR2
+IS
+BEGIN
+  NULL ;
+END ;
+
+--===============================================================
+-- /* Example 17-04.매개변수가 없는 함수 정의에 빈 매개변수 괄호 사용 시 오류 발생.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 매개변수가 없는 함수 정의에 빈 매개변수 괄호 사용시 오류 발생
+CREATE OR REPLACE FUNCTION f() RETURN VARCHAR2
+IS
+BEGIN
+  NULL ;
+END ;
+
+--===============================================================
+-- /* Example 17-05.함수의 선언부.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 함수의 선언부
+CREATE OR REPLACE FUNCTION f
+  RETURN NUMBER
+
+-- 함수 선언부
+IS
+  FUNCTION get_emp_sal(a_empno NUMBER) RETURN NUMBER; -- 함수 전방 선언
+
+  no_emp_found EXCEPTION; -- 사용자 지정 예외 선언
+
+  TYPE number_arr_type IS TABLE OF NUMBER; -- 타입 선언
+  v_empno_arr number_arr_type;             -- 변수 선언
+
+  c_nulm_comm CONSTANT NUMBER := 0;        -- 상수 선언
+
+  v_wage NUMBER; -- 변수 선언
+
+  CURSOR emp_cursor(a_empno NUMBER) IS  -- 커서 선언
+    SELECT sal + NVL(comm, 0) comm
+      FROM EMP
+     WHERE empno = a_empno;
+
+  FUNCTION get_emp_sal(a_empno NUMBER) RETURN NUMBER IS -- 함수 정의
+    v_sal NUMBER;
+  BEGIN
+    OPEN emp_cursor(7788);
+    FETCH emp_cursor INTO v_sal;
+    CLOSE emp_cursor;
+    RETURN v_sal;
+  END;
+BEGIN
+  NULL;
+END;
+
+--===============================================================
+-- /* Example 17-06.함수에서 컬렉션 반환을 위한 객체 타입 선언.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 함수에서 컬렉션 반환을 위한 객체 타입 선언
+CREATE OR REPLACE TYPE empno_arr_type IS TABLE OF NUMBER ;
+
+--===============================================================
+-- /* Example 17-07.컬렉션을 반환하는 함수 정의.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+CREATE OR REPLACE FUNCTION get_emp_list(a_deptno NUMBER)
+  RETURN empno_arr_type
+IS
+  v_empno_arr empno_arr_type ;
+BEGIN
+  SELECT empno
+    BULK COLLECT INTO v_empno_arr
+    FROM emp
+   WHERE deptno = a_deptno
+   ORDER BY empno;
+  RETURN v_empno_arr ;
+END ;
+
+--===============================================================
+-- /* Example 17-08.레코드를 반환하는 함수 정의.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+CREATE OR REPLACE FUNCTION get_emp_rec(a_empno NUMBER)
+  RETURN emp%ROWTYPE
+IS
+  v_emp_rec emp%ROWTYPE ;
+BEGIN
+  SELECT *
+    INTO v_emp_rec
+    FROM emp
+   WHERE empno = a_empno;
+  RETURN v_emp_rec ;
+END ;
+
+--===============================================================
+-- /* Example 17-09.컬렉션 반환 함수에 연속적으로 2개의 괄호 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 컬렉션 반환 함수에 연속적으로 2개의 괄호 사용
+REM 첫 번째 괄호인 (10)은 함수 get_emp_list를 호출할 때의 매개변수.
+REM 두 번째 괄호인 (1)은 네스티드 테이블의 인덱스.
+BEGIN
+  DBMS_OUTPUT.PUT_LINE(get_emp_list(10)(1)) ;
+END ;
+
+--===============================================================
+-- /* Example 17-10.컬렉션 반환 함수가 매개변수를 가지지 않는 경우.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 컬렉션 반환 함수가 매개변수를 가지지 않는 경우
+REM 첫 번째 빈 괄호 ()은 함수 get_emp_list를 호출할 때의 매개변수.
+REM 두 번째 괄호인 (1)은 네스티드 테이블의 인덱스.
+DECLARE
+  -- 매개변수를 가지지 않는 함수
+  FUNCTION get_emp_list_of_dept_10 RETURN empno_arr_type
+  IS
+    v_empno_arr empno_arr_type ;
+  BEGIN
+    SELECT empno
+      BULK COLLECT INTO v_empno_arr
+      FROM emp
+     WHERE deptno = 10; -- 부서 번호 10의 사원 번호 목록
+    RETURN v_empno_arr ;
+  END ;
+BEGIN
+  DBMS_OUTPUT.PUT_LINE(get_emp_list_of_dept_10()(1)) ;
+END ;
+
+--===============================================================
+-- /* Example 17-11.두 개의 RETURN 문을 가지는 함수.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+CREATE OR REPLACE FUNCTION max_number(a_1 NUMBER, a_2 NUMBER)
+  RETURN NUMBER
+IS
+BEGIN
+  IF a_1 <= a_2 THEN
+    RETURN a_2 ;
+  ELSE
+    RETURN a_1 ;
+  END IF ;
+END ;
