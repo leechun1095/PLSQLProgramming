@@ -5180,7 +5180,7 @@ BEGIN
       -- 사원이 존재하지 않을 경우는 수행을 중단하고 복귀한다. 반환값이 없는 것이 함수와 다른 점이다.
       RETURN ;
   END ;
-  
+
   -- 보너스를 인상한다.
   IF a_amt IS NOT NULL
   THEN
@@ -5194,3 +5194,462 @@ BEGIN
        VALUES (v_ename, a_amt) ;
   END IF ;
 END ;
+
+--===============================================================
+-- /* Example 19-01.패키지 명세.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+CREATE OR REPLACE PACKAGE pkg_emp
+IS
+	-- 공용 타입 선언
+	TYPE emp_type IS TABLE OF emp%ROWTYPE;
+
+	-- 공용 상수 선언
+	c_deptno_accounting 	CONSTANT NUMBER := 10;
+	c_deptno_research			CONSTANT NUMBER := 20;
+	c_deptno_sales				CONSTANT NUMBER := 30;
+	c_deptno_operations		CONSTANT NUMBER := 40;
+
+	-- 공용 변수 선언
+	v_last_wage NUMBER;
+
+	-- 공용 서브프로그램 선언
+	FUNCTION get_wage(a_empno NUMBER) RETURN NUMBER;
+	PROCEDURE raise_bonus(a_empno NUMBER, a_amt NUMBER);
+END;
+
+--===============================================================
+-- /* Example 19-02.패키지 본체.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+CREATE OR REPLACE PACKAGE BODY pkg_emp
+IS
+	--------------------------------------
+	-- 전용 상수 선언
+	--------------------------------------
+	c_null_commission		CONSTANT NUMBER := 0;
+	c_failed_return_wage CONSTANT NUMBER := -1 ;
+
+	--------------------------------------
+	-- 전용 커서 선언
+	--------------------------------------
+	CURSOR emp_cursor(a_empno NUMBER) IS
+		-- 사번이 a_empno인 사원의 급여와 커미션의 합을 조회한다.
+		SELECT sal + NVL(comm, c_null_commission) comm
+			FROM emp
+		 WHERE empno = a_empno;
+
+	--------------------------------------
+  -- 공용 서브프로그램 정의
+  --------------------------------------
+	FUNCTION get_wage(a_empno NUMBER) RETURN NUMBER
+	-- 사원의 급여와 커미션의 합을 반환하는 함수
+	IS
+	BEGIN
+		FOR rec IN emp_cursor(a_empno)
+		LOOP
+			-- 사원이 존재하는 경우에는 급여를 반환한다.
+			v_last_wage := rec.comm;
+			return rec.comm;
+		END LOOP;
+		-- 사원이 존재하지 않을 경우는 -1을 반환한다.
+		RETURN c_failed_return_wage;
+	END;
+
+PROCEDURE raise_bonus(a_empno NUMBER, a_amt NUMBER)
+-- 테이블 bonus에 사원이 커미션 값을 인상하는 프로시저
+IS
+	v_ename emp.ename%TYPE;
+BEGIN
+	-- 사원의 이름을 얻는다.
+	BEGIN
+		SELECT ename
+			INTO v_ename
+			FROM emp
+		 WHERE empno = a_empno;
+	EXCEPTION
+		WHEN NO_DATA_FOUND THEN
+			-- 사원이 존재하지 않을 경우는 수행을 중단하고 복귀한다.
+			-- 반환값이 없는 것이 함수와 다른 점이다.
+			RETURN;
+	END;
+
+	-- 보너스를 인상한다.
+	IF a_amt IS NOT NULL
+	THEN
+		MERGE INTO bonus
+		USING DUAL
+			 ON (bonus.ename = v_ename)
+		 WHEN MATCHED THEN
+			 UPDATE SET comm = comm + a_amt
+		 WHEN NOT MATCHED THEN
+			 INSERT (ename, comm)
+			 VALUES (v_ename, a_amt);
+	END IF;
+END;
+
+BEGIN -- 패키지 초기화부
+	v_last_wage := -1;
+END;
+
+--===============================================================
+-- /* Example 19-03.패키지 변수는 다른 PLSQL에서 참조 가능하다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+DECLARE
+	v_var		NUMBER;
+BEGIN
+	v_var := pkg_emp.get_wage(7788);
+	DBMS_OUTPUT.PUT_LINE('last wage = ' || pkg_emp.v_last_wage);	-- 패키지 변수 참조
+END;
+
+--===============================================================
+-- /* Example 19-04.패키지 변수는 외부 SQL에서 참조할 수 없다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+SELECT pkg_emp.v_last_wage	-- 패키지 변수는 외부 SQL문에서 참조할 수 없다.
+	FROM DUAL;
+
+--===============================================================
+-- /* Example 19-05.패키지 변수를 선언과 동시에 초기값 부여.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 패키지 변수를 선언과 동시에 초기값 부여
+CREATE OR REPLACE PACKAGE pkg_xyz
+IS
+  v_pkg_var_1 NUMBER := 1 ; -- 공용 패키지 변수. 선언시 초기화
+  v_pkg_var_2 NUMBER ;      -- 공용 패키지 변수. 미초기화
+END ;
+
+--===============================================================
+-- /* Example 19-06.패키지 변수를 패키지 본체의 초기화부에서 초기화.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 패키지 변수를 패키지 본체의 초기화부에서 초기화
+CREATE OR REPLACE PACKAGE BODY pkg_xyz
+IS
+  v_pkg_var_3 NUMBER := 3 ; -- 전용 패키지 변수. 선언시 초기화
+  v_pkg_var_4 NUMBER ;      -- 전용 패키지 변수. 미초기화
+BEGIN
+  -- 초기화부에서 패키지 변수 초기화
+  v_pkg_var_2 := 2 ; -- 공용 패키지 변수를 초기화
+  v_pkg_var_4 := 4 ; -- 전용 패키지 변수를 초기화
+END ;
+
+--===============================================================
+-- /* Example 19-07.패키지 변수 사용시 주의사항 예제를 위한 패키지 명세.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 패키지 변수 사용시 주의사항 예제를 위한 패키지 명세
+REM 예제용 패키지 생성
+CREATE OR REPLACE PACKAGE pkg_seq
+IS
+	v_seq	NUMBER;		-- 공용 패키지 변수 선언
+
+	FUNCTION	get_nextval RETURN NUMBER;		--패키지 변수의 값을 1증가시키고 이 값을 반환
+END;
+
+--===============================================================
+-- /* Example 19-08.패키지 변수 사용시 주의사항 예제를 위한 패키지 본체.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 패키지 변수 사용시 주의사항 예제를 위한 패키지 본체
+REM 예제용 패키지 생성
+CREATE OR REPLACE PACKAGE BODY pkg_seq
+IS
+	FUNCTION get_nextval RETURN NUMBER IS
+	BEGIN
+		v_seq := v_seq + 1;
+		RETURN v_seq;
+	END;
+BEGIN
+	v_seq := 0;  -- 공용 패키지 변수 초기화, 세션이 다른 경우 0부터 시작하게 초기화
+END;
+
+-- TEST
+DECLARE
+  v_value NUMBER;
+BEGIN
+  v_value := pkg_seq.get_nextval;
+  DBMS_OUTPUT.PUT_LINE(v_value);
+END;
+
+-- TEST (동일)
+SELECT pkg_seq.get_nextval
+	FROM DUAL;
+
+--===============================================================
+-- /* Example 19-09.패키지 변수의 세션 의존성.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM =====================================
+REM 세션 1
+SELECT pkg_seq.get_nextval FROM dual ;
+
+SELECT pkg_seq.get_nextval FROM dual ;
+
+REM =====================================
+REM 세션 2
+SELECT pkg_seq.get_nextval FROM dual ;
+
+REM =====================================
+REM 세션 1
+SELECT pkg_seq.get_nextval FROM dual ;
+
+--===============================================================
+-- /* Example 19-10.패키지 변수의 생명주기, 세션 의존성, 재 초기화.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 패키지 변수의 생명주기, 세션 의존성, 재 초기화 예제
+
+REM 다음 문장이 실행될 때 패키지 변수가 초기화된다.
+SELECT pkg_seq.get_nextval FROM dual ;
+
+PAUSE
+
+SELECT pkg_seq.get_nextval FROM dual ;
+
+PAUSE
+
+SELECT pkg_seq.get_nextval FROM dual ;
+
+PAUSE
+
+REM 패키지가 재컴파일되면 패키지는 메모리에서 제거된다.
+ALTER PACKAGE pkg_seq COMPILE ;
+
+
+PAUSE
+
+REM 다음 문장이 실행될 때 패키지 변수가 다시 초기화된다.
+SELECT pkg_seq.get_nextval FROM dual ;
+
+PAUSE
+
+SELECT pkg_seq.get_nextval FROM dual ;
+
+
+PAUSE
+
+REM SQL*Plus를 종료 후 재접속한다.
+REM EXIT
+
+REM sqlplus scott/tiger
+
+REM 재접속 하면 패키지는 메모리에 존재하지 않고, 다음 줄에서 다시 초기화된다.
+SELECT pkg_seq.get_nextval FROM dual ;
+
+--===============================================================
+-- /* Example 19-11.패키지 서브프로그램은 다른 PLSQL 프로그램에서 참조 가능.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 패키지 서브프로그램은 다른 PL/SQL 프로그램에서 참조 가능
+DECLARE
+	v_var	NUMBER;
+BEGIN
+	v_var := pkg_emp.get_wage(7788);
+	DBMS_OUTPUT.PUT_LINE('last wage = ' || pkg_emp.v_last_wage);
+END;
+
+--===============================================================
+-- /* Example 19-12.패키지 함수는 패키지 변수와 달리 SQL에서도 참조 가능.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 패키지 함수는 패키지 변수와 달리 SQL에서도 참조 가능
+SELECT pkg_emp.get_wage(empno) FROM emp WHERE empno = 7788;
+
+--===============================================================
+-- /* Example 19-13.패키지 전용 서브프로그램의 순서(패키지 명세).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 패키지 전용 서브프로그램의 순서 예제
+REM 패키지 명세
+CREATE OR REPLACE PACKAGE pkg_xyz
+IS
+  -- 빈 패키지 명세
+END ;
+
+--===============================================================
+-- /* Example 19-14.패키지 전용 서브프로그램의 순서(오류 발생).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 패키지 전용 서브프로그램의 순서 예제
+REM 서브프로그램은 사용되기 전에 선언되어야 함
+REM 패키지 본체: 서브프로그램의 순서에 따라서 오류가 발생할 수 있음
+CREATE OR REPLACE PACKAGE BODY pkg_xyz
+IS
+  -- 전용 서브프로그램 정의
+  -- 두 서브프로그램 x와 y는 패키지 명세에는 정의되지 않았다.
+  PROCEDURE y IS
+  BEGIN
+    x() ; -- x가 사용되기 전에 선언되지 않았으므로 오류 발생
+  END ;
+
+  PROCEDURE x IS
+  BEGIN
+    NULL ;
+  END ;
+END ;
+/
+
+PAUSE
+
+REM 오류 조회
+SHOW ERROR
+
+--===============================================================
+-- /* Example 19-15.패키지 전용 서브프로그램의 순서(정상 컴파일).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 패키지 전용 서브프로그램의 순서 예제
+REM 패키지 본체 : 정상 컴파일
+CREATE OR REPLACE PACKAGE BODY pkg_xyz
+IS
+  -- 전용 서브프로그램 정의.
+  -- 두 서브프로그램 x와 y는 패키지 명세에는 정의되지 않았다
+  PROCEDURE x IS
+  BEGIN
+    NULL ;
+  END ;
+
+  PROCEDURE y IS
+  BEGIN
+    x() ; -- 순서상x 가 먼저 선언되었으므로 정상
+  END ;
+END ;
+
+--===============================================================
+-- /* Example 19-16.패키지 커서 명세.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 패키지 커서 예제
+REM 패키지 명세
+CREATE OR REPLACE PACKAGE pkg_emp
+IS
+  CURSOR c_emp_cur RETURN emp%ROWTYPE ;
+END ;
+
+--===============================================================
+-- /* Example 19-17.패키지 커서 본체.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 패키지 커서 예제
+REM 패키지 본체
+CREATE OR REPLACE PACKAGE BODY pkg_emp
+IS
+  CURSOR c_emp_cur RETURN emp%ROWTYPE IS
+    SELECT *
+      FROM emp
+     ORDER BY ename ;
+END ;
+
+--===============================================================
+-- /* Example 19-18.다른 프로그램에서 패키지 커서 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 패키지 커서 예제
+REM 다른 프로그램에서 패키지 커서 사용
+BEGIN
+	FOR cur IN pkg_emp.c_emp_cur
+	LOOP
+		DBMS_OUTPUT.PUT_LINE(cur.ename) ;
+	END LOOP;
+END;
+
+--===============================================================
+-- /* Example 19-19.일반 패키지와 SERIALLY_REUSABLE 패키지의 차이.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 일반 패키지
+CREATE OR REPLACE PACKAGE normal_pkg IS
+  v_n NUMBER := 0 ; -- 0으로 초기화
+END ;
+/
+
+PAUSE
+
+REM SERIALLY_REUSABLE 패키지
+CREATE OR REPLACE PACKAGE sr_pkg IS
+  PRAGMA SERIALLY_REUSABLE;
+  v_n NUMBER := 0 ; -- 0으로 초기화
+END ;
+/
+
+PAUSE
+
+REM 두 패키지 변수의 값을 동일하게 10으로 변경
+BEGIN
+  normal_pkg.v_n := 10 ; -- 일반              패키지 변수 값을 10으로 변경
+  sr_pkg.    v_n := 10 ; -- SERIALLY_REUSABLE 패키지 변수 값을 10으로 변경
+END ;
+/
+
+PAUSE
+
+REM 재호출 시 패키지 변수의 값의 차이를 출력
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('normal_pkg.v_n = ' || normal_pkg.v_n) ;
+  DBMS_OUTPUT.PUT_LINE('sr_pkg.    v_n = ' || sr_pkg.    v_n) ;
+END ;
+/
+/* 결과
+normal_pkg.v_n = 10
+sr_pkg.    v_n = 0
+*/
