@@ -5611,11 +5611,7 @@ BEGIN
 END;
 
 --===============================================================
-<<<<<<< HEAD
--- /* Example 19-19.일반 패키지와 SERIALLY_REUSABLE 패키지의 차이.SQL  */
-=======
 -- /* Example 19-19.일반 패키지와 SERIALLY_REUSABLE 패키지의 차이.SQL */
->>>>>>> ff7e36dba04ebba89371679d7b33a1ea12840777
 --===============================================================
 SET ECHO ON
 SET TAB OFF
@@ -5657,3 +5653,1056 @@ END ;
 normal_pkg.v_n = 10
 sr_pkg.    v_n = 0
 */
+
+--===============================================================
+-- /* Example 20-01.IN 매개변수와 OUT 매개변수의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM IN 매개변수와 OUT 매개변수의 사용
+CREATE OR REPLACE PROCEDURE get_wage_proc(a_empno NUMBER, a_wage OUT NUMBER)
+-- 사원의 급여와 커미션의 합을 매개변수로 반환하는 프로시저
+IS
+	v_wage NUMBER;
+BEGIN
+	-- 사번이 a_empno인 사원의 급여와 커미션의 합을 조회한다.
+	SELECT sal + NVL(comm, 0) comm
+		INTO v_wage
+		FROM emp
+	 WHERE empno = a_empno;
+	-- 매개변수 a_wage를 통해 계산된 급여를 반환한다.
+	a_wage := v_wage;
+  DBMS_OUTPUT.PUT_LINE(a_wage);
+END;
+
+--===============================================================
+-- /* Example 20-02.get_wage 함수와 get_wage_proc 프로시저의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM get_wage 함수와 get_wage_proc 프로시저의 사용
+DECLARE
+	v_amt NUMBER;
+  v_wage NUMBER;
+BEGIN
+	v_amt := get_wage(7788);	-- 함수
+  DBMS_OUTPUT.PUT_LINE(v_amt);
+	get_wage_proc(7788, v_amt);		-- 프로시저
+END;
+
+--===============================================================
+-- /* Example 20-03.IN 매개변수는 값을 변경할 수 없다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM IN 매개변수는 값을 변경할 수 없다
+-- PLS-00363 에러 발생
+DECLARE
+	PROCEDURE p(a_arg IN NUMBER) IS
+	BEGIN
+		a_arg := a_arg + 1; -- IN 모드의 매개변수 값을 변경하려면 컴파일 오류 발생
+	END;
+BEGIN
+	p(1);
+END;
+
+--===============================================================
+-- /* Example 20-04.위치에 의한 매개변수 지정.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 위치에 의한 매개변수 지정
+BEGIN raise_salary(7788/*사번*/, 100/*금액*/) ;
+END ;
+
+--===============================================================
+-- /* Example 20-05.이름에 의한 매개변수 지정.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 이름에 의한 매개변수 지정
+REM 다음 두 개의 호출은 매개변수의 위치가 다르지만 실제로는 완전히 동일한 호출이다.
+BEGIN raise_salary(a_empno => 7788, a_amt   => 100) ;
+END;
+/
+BEGIN raise_salary(a_amt   => 100,  a_empno => 7788);
+END;
+
+--===============================================================
+-- /* Example 20-06.위치에 의한 매개변수 지정과 이름에 의한 매개변수 지정의 혼합 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 위치에 의한 매개변수 지정과 이름에 의한 매개변수 지정의 혼합 사용
+call raise_salary(7788, a_amt => 100) ;
+
+--===============================================================
+-- /* Example 20-07.함수에서 이름에 의한 매개변수 지정 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 함수에서 이름에 의한 매개변수 지정 사용
+SELECT ename, empno, sal, comm
+     , get_wage(empno) 급여               -- 위치에 의한 매개변수 지정
+  FROM emp
+ WHERE deptno = 30
+   AND get_wage(a_empno => empno) >= 2000 -- 이름에 의한 매개변수 지정
+ ORDER BY ename;
+
+--===============================================================
+-- /* Example 20-08.OUT 매개변수 변경의 원자성 보장.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM OUT 매개변수 변경의 사용
+CREATE OR REPLACE PROCEDURE out_argument_proc(a_num OUT NUMBER)
+IS
+BEGIN
+	a_num := 1;		-- OUT 매개변수 a_num을 1로 변경했다. 호출자 측에서는 값이 어떻게 될까?
+	DBMS_OUTPUT.PUT_LINE('매개변수 값을 1로 변경');
+	RAISE_APPLICATION_ERROR(-20001, '처리되지 않은 Exception 발생');
+END;
+
+REM 서브 프로그램에서 예외 발생 시 OUT 매개변수의 원자성이 보장된다.
+DECLARE
+	v_num NUMBER;
+BEGIN
+	v_num := 0;
+	DBMS_OUTPUT.PUT_LINE('프로시저 호출 전 v_num = ' || v_num);
+	BEGIN
+		out_argument_proc(v_num);
+	EXCEPTION WHEN OTHERS THEN
+		DBMS_OUTPUT.PUT_LINE(SQLERRM);
+	END;
+	DBMS_OUTPUT.PUT_LINE('프로시저 호출 후 v_num = ' || v_num);
+END;
+
+--===============================================================
+-- /* Example 20-09.NOCOPY 매개변수.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM NOCOPY 매개변수의 사용시에는 매개변수 원자성이 보장되지 않는다.
+DECLARE
+	v_my_exception EXCEPTION;
+
+	v1 NUMBER := 0;
+	v2 NUMBER := 0;
+
+	-- 매개변수의 원자성 보장
+	PROCEDURE p_normal(a_1 OUT NUMBER, a_2 OUT NUMBER) IS
+	BEGIN
+		-- 예외 발생 이전에 매개변수 값을 변경하지만 메인 블록으로 전달되지 않는다.
+		a_1 := 10;
+		RAISE v_my_exception; -- 예외발생
+		a_2 := 10;
+	END;
+
+	-- NOCOPY 매개변수. 메모리 복사로 인한 부하는 사라지나, 매개변수의 원자성 미보장
+	PROCEDURE p_nocopy(a_1 OUT NOCOPY NUMBER, a_2 OUT NOCOPY NUMBER) IS
+	BEGIN
+		-- NOCOPY를 사용했기 때문에, 예외가 발생하면 변경이 메인 블록으로 전달된다.
+		a_1 := 10 ;
+		RAISE v_my_exception ; -- 예외 발생
+		a_2 := 10 ;
+	END;
+
+BEGIN
+	DBMS_OUTPUT.PUT_LINE('p_normal(NOCOPY 미사용) 호출 전 : v1 = '|| v1 || ', v2 = ' || v2) ;
+	BEGIN
+		p_normar(v1, v2);
+	EXCEPTION WHEN v_my_exception THEN NULL ;
+	END;
+
+	DBMS_OUTPUT.PUT_LINE('p_normal(NOCOPY 미사용) 호출 후 : v1 = '|| v1 || ', v2 = ' || v2) ;
+  BEGIN
+    p_nocopy(v1, v2) ; -- NOCOPY로 인한 매개변수 원자성 미보장 버전 호출
+  EXCEPTION WHEN v_my_exception THEN NULL ;
+  END ;
+  DBMS_OUTPUT.PUT_LINE('p_nocopy(NOCOPY 사용  ) 호출 후 : v1 = '|| v1 || ', v2 = ' || v2) ;
+END;
+
+--===============================================================
+-- /* Example 20-10.재귀호출을 사용한 팩토리얼 계산 함수.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 재귀호출을 사용한 팩토리얼 계산 함수
+CREATE OR REPLACE FUNCTION factorial(a_num PLS_INTEGER)
+RETURN NUMBER
+IS
+BEGIN
+	IF a_num <= 1 THEN
+		RETURN 1;
+	ELSE
+		RETURN a_num * factorial(a_num-1); -- 재귀호출
+	END IF;
+END;
+
+PAUSE
+
+REM SELECT문에서 factorial 함수 호출
+SELECT LEVEL 숫자
+		 , factorial(LEVEL)
+	FROM DUAL
+	CONNECT BY LEVEL <= 10;
+
+--===============================================================
+-- /* Example 20-11.서브프로그램 정의의 중첩.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 서브프로그램 정의의 중첩
+CREATE OR REPLACE PROCEDURE raise_bonus2(a_empno NUMBER, a_amt NUMBER)
+-- 테이블 bonus에 사원의 커미션 값을 인상하는 프로시저
+IS
+	v_emp_name emp.ename%TYPE;
+
+	-- 사원의 이름을 얻는 함수. raise_bonus2 내부에 중첩되어 정의됨
+	FUNCTION get_ename(a_empno NUMBER) RETURN VARCHAR2
+	IS
+		v_ename emp.ename%TYPE;
+	BEGIN
+		SELECT ename
+			INTO v_ename
+			FROM emp
+		 WHERE empno = a_empno;
+		RETURN v_ename;
+	EXCEPTION
+		WHEN NO_DATA_FOUND THEN
+			RETURN NULL;
+	END;
+
+	-- 사원의 보너스를 인상하는 프로시저. raise_bonus2에 중첩되어 정의됨
+	PROCEDURE raise_bonus(a_ename VARCHAR2, a_amt NUMBER) IS
+	BEGIN
+		MERGE INTO bonus
+		USING DUAL
+			 ON (bonus.ename = a_ename)
+		 WHEN MATCHED THEN
+		 	 UPDATE SET comm = comm + a_amt
+		 WHEN NOT MATCHED THEN
+			 INSERT (ename, comm)
+			 VALUES (a_ename, a_mt);
+	END;
+BEGIN
+	v_emp_name := get_ename(a_empno);
+	IF a_amt IS NOT NULL
+	THEN
+		raise_bonus(v_emp_name, a_amt);
+	END IF;
+END;
+
+--===============================================================
+-- /* Example 20-12.서브프로그램 중복 정의(패키지 명세).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 서브프로그램 중복 정의
+REM 패키지 명세
+CREATE OR REPLACE PACKAGE pkg_emp
+IS
+  FUNCTION emp_dept_name(a_empno NUMBER  ) RETURN VARCHAR2 ; -- 사번을 매개변수로 하는 버전
+  FUNCTION emp_dept_name(a_ename VARCHAR2) RETURN VARCHAR2 ; -- 이름을 매개변수로 하는 버전
+END ;
+
+--===============================================================
+-- /* Example 20-13.서브프로그램 중복 정의(패키지 본체).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 서브프로그램 중복 정의
+REM 패키지 본체
+CREATE OR REPLACE PACKAGE BODY pkg_emp
+IS
+	-- 사번을 매개변수로 하는 버전
+	FUNCTION emp_dept_name(a_empno NUMBER) RETURN VARCHAR2
+	IS
+		v_dname dept.dname%TYPE;
+	BEGIN
+		SELECT dname
+			INTO v_dname
+			FROM emp e
+		 INNER JOIN dept d
+				ON e.deptno = d.deptno
+		 WHERE e.empno = a_empno;
+		RETURN v_dname;
+	END;
+
+	-- 이름을 매개변수로 하는 버전
+	FUNCTION emp_dept_name(a_ename VARCHAR2) RETURN VARCHAR2
+	IS
+		v_dname dept.dname%TYPE;
+	BEGIN
+		SELECT dname
+			INTO v_dname
+			FROM emp e
+		 INNER JOIN dept d
+		 	  ON e.deptno = d.deptno
+		 WHERE e.ename = a_ename;
+		RETURN v_dname;
+	END;
+END;
+
+--===============================================================
+-- /* Example 20-14.중복 정의된 서브프로그램 호출.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 중복 정의된 서브 프로그램은 호출되는 매개변수 데이터 타입에 따라서 서로 다른 버전이 호출됨
+SELECT pkg_emp.emp_dept_name(7788)  AS 사번매개변수버전
+     , pkg_emp.emp_dept_name('SCOTT') AS 이름매개변수버전
+  FROM DUAL ;
+
+--===============================================================
+-- /* Example 20-15.서브프로그램 중복 정의의 다양한 유형(패키지 명세).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 서브프로그램 중복 정의의 다양한 유형
+REM 패키지 명세
+CREATE OR REPLACE PACKAGE pkg_overloading
+IS
+	-- 1: 매개변수 데이터 타입이 다른 중복 정의(Overloading)
+	PROCEDURE p1(n NUMBER);
+	PROCEDURE p1(v VARCHAR2);
+
+	-- 2: 매개변수 개수가 다른 중복 정의(Overloading)
+	PROCEDURE p2(n NUMBER);
+	PROCEDURE p2(n NUMBER, v VARCHAR2);
+
+	-- 3: 매개변수 순서가 다른 중복 정의(Overloading)
+	PROCEDURE p3(v VARCHAR2, n NUMBER);
+	PROCEDURE p3(n NUMBER, v VARCHAR2);
+
+	-- 4: 매개변수 이름이 다른 중복 정의(Overloading)
+	PROCEDURE p4(v1 VARCHAR2, n1 NUMBER);
+	PROCEDURE p4(v2 VARCHAR2, n2 NUMBER);
+END;
+
+--===============================================================
+-- /* Example 20-16.서브프로그램 중복 정의의 다양한 유형(패키지 본체).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 서브프로그램 중복 정의의 다양한 유형
+REM 패키지 본체
+CREATE OR REPLACE PACKAGE BODY pkg_overloading
+IS
+	-- 1. 매개변수 데이터 타입이 다른 중복 정의(Overloading)
+	PROCEDURE p1(n NUMBER)   IS BEGIN NULL ; END ;
+	PROCEDURE p1(v VARCHAR2) IS BEGIN NULL ; END ;
+
+	-- 2. 매개변수 개수가 다른 중복 정의(Overloading)
+	PROCEDURE p2(n NUMBER)             IS BEGIN NULL ; END ;
+	PROCEDURE p2(n NUMBER, v VARCHAR2) IS BEGIN NULL ; END ;
+
+	-- 3. 매개변수 순서가 다른 중복 정의(Overloading)
+	PROCEDURE p3(v VARCHAR2, n NUMBER) IS BEGIN NULL ; END ;
+	PROCEDURE p3(n NUMBER, v VARCHAR2) IS BEGIN NULL ; END ;
+
+	-- 4. 매개변수 이름만 다르고 다른 것은 동일한 중복 정의(Overloading)
+	PROCEDURE p4(v1 VARCHAR2, n1 NUMBER) IS BEGIN NULL ; END ;
+	PROCEDURE p4(v2 VARCHAR2, n2 NUMBER) IS BEGIN NULL ; END ;
+END ;
+
+--===============================================================
+-- /* Example 20-17.중복 정의된 서브프로그램 호출시 오류.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 서브프로그램 중복 정의의 다양한 유형
+REM 중복 정의된 서브프로그램 호출 시 오류
+BEGIN
+  -- 매개변수 이름이 다른 중복 정의 호출 시의 오류
+  pkg_overloading.p4('A', 1) ;
+END ;
+
+-- ORA-06550, PLS-00307: too many declarations of 'P4' match this callORA-06550
+
+--===============================================================
+-- /* Example 20-18.중복 정의된 서브프로그램 호출 시 오류 방지 방법.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 서브프로그램 중복 정의의 다양한 유형
+REM 중복 정의된 서브프로그램 호출 시 오류 방지 방법
+BEGIN
+  -- 매개변수의 이름만 다른 오버로딩 호출 시 이름에 의한 매개변수 지정을 사용하여 오류 방지
+  pkg_overloading.p4(v1 => 'A', n1 => 1) ; -- 첫 번째 p4 프로시저
+  pkg_overloading.p4(v2 => 'A', n2 => 1) ; -- 두 번째 p4 프로시저
+END ;
+
+--===============================================================
+-- /* Example 20-19.입출력 모드만 다른 서브프로그램 중복 정의는 불가능하다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 입출력 모드만 다른 서브프로그램 중복 정의는 불가능하다.
+DECLARE
+  PROCEDURE p(a IN  VARCHAR2) IS BEGIN NULL ; END ;
+  PROCEDURE p(a OUT VARCHAR2) IS BEGIN NULL ; END ;
+BEGIN
+  p('A') ;
+END ;
+
+--===============================================================
+-- /* Example 20-20.서브타입만 다르고 기본 데이터 타입이 동일한 매개변수로는 중복 정의는 불가능하다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 서브타입만 다르고 기본 데이터 타입이 동일한 매개변수로는 중복 정의는 불가능하다
+DECLARE
+  PROCEDURE p(a INTEGER) IS BEGIN NULL ; END ;
+  PROCEDURE p(a REAL)    IS BEGIN NULL ; END ;
+BEGIN
+  P(10) ;
+END ;
+
+--===============================================================
+-- /* Example 20-21.반환형만 다른 중복 정의는 불가능하다.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 반환형만 다른 중복 정의는 불가능하다
+DECLARE
+  FUNCTION f(a VARCHAR2) RETURN NUMBER   IS BEGIN RETURN 0   ; END ;
+  FUNCTION f(a VARCHAR2) RETURN VARCHAR2 IS BEGIN RETURN 'A' ; END;
+BEGIN
+  DBMS_OUTPUT.PUT_LINE(f('abc')) ;
+END ;
+
+--===============================================================
+-- /* Example 20-22.두 개의 프로시저가 상호 호출하는 경우에 컴파일 오류 발생.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 2개의 프로시저가 상호 호출하는 경우에는 컴파일이 불가능하다
+DECLARE
+  -- 프로시저 p1은 프로시저 p2를 호출한다.
+  PROCEDURE p1(a_num1 NUMBER) IS
+  BEGIN
+    p2(a_num1); -- p2가 뒤에 선언되므로 이 지점에서는 식별자가 유효하지 않아서 오류가 발생한다.
+  END;
+
+  -- 프로시저 p2는 프로시저 p1을 호출한다
+  PROCEDURE p2(a_num2 NUMBER) IS
+  BEGIN
+    p1(a_num2); -- p1이 먼저 정의되었으므로 오류가 발생하지 않는다.
+  END;
+
+BEGIN
+  NULL;
+END;
+
+--===============================================================
+-- /* Example 20-23.전방 선언으로 프로시저의 상호 호출 문제 해결.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 전방 선언으로 프로시저의 상호 호출 문제 해결
+DECLARE
+	-- 프로시저 p2를 전방 선언하여 오류를 방지한다.
+	PROCEDURE p2(a_num2 NUMBER);
+
+	-- 프로시저 p1은 프로시저 p2를 호출한다.
+  PROCEDURE p1(a_num1 NUMBER) IS
+  BEGIN
+    p2(a_num1); -- p2가 전방 선언 되었으므로 오류가 발생하지 않는다.
+  END;
+
+  -- 프로시저 p2는 프로시저 p1을 호출한다.
+  PROCEDURE p2(a_num2 NUMBER) IS
+  BEGIN
+    p1(a_num2); -- p1이 먼저 정의되었으므로 오류가 발생하지 않는다.
+  END;
+
+BEGIN
+  NULL;
+END;
+
+--===============================================================
+-- /* Example 20-24.자치 트랜잭션을 활용한 로깅 프로시저.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 자치 트랜잭션을 활용한 로깅 예제
+REM 로깅용 테이블
+DROP TABLE log_table ;
+CREATE TABLE log_table (
+	timestmp TIMESTAMP WITH TIME ZONE,
+	log_text VARCHAR2(4000)
+);
+
+PAUSE
+
+REM 자치 트랜잭션을 활용한 로깅 프로시저
+CREATE OR REPLACE PROCEDURE log_msg(a_log_text VARCHAR2)
+IS
+	PRAGMA AUTONOMOUS_TRANSACTION;	-- 자치트랜잭션 선언
+BEGIN
+	INSERT INTO log_table(timestmp, log_text)
+	VALUES (SYSTIMESTAMP, a_log_text) ;
+	COMMIT; -- 자치 트랜잭션을 커밋한다. 메인 트랜잭션은 커밋되지 않는다.
+END;
+
+--===============================================================
+-- /* Example 20-25.자치 트랜잭션 함수 log_msg 실행.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 초기 건수
+SELECT (SELECT COUNT(*) FROM EMP)	AS "emp 건수"
+		 , (SELECT COUNT(*) FROM log_table) AS "로그 건수"
+	FROM DUAL;
+
+REM 자치 트랜잭션 함수 log_msg 실행
+BEGIN
+	INSERT INTO emp(empno, ename, sal)
+	VALUES (9100, '이순신', 9100);
+  log_msg('이순신을 추가했습니다.');
+	ROLLBACK;
+END;
+
+REM 로깅 + 롤백 후 건수
+SELECT (SELECT COUNT(*) FROM emp)       "emp 건수"
+     , (SELECT COUNT(*) FROM log_table) "로그 건수"
+  FROM DUAL ;
+
+--===============================================================
+-- /* Example 20-26.패키지에서 자치 트랜잭션의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 패키지에서 자치 트랜잭션의 사용
+CREATE OR REPLACE PACKAGE pkg_emp
+IS  -- 패키지 명세에는 자치 트랜잭션 선언이 없다.
+  PROCEDURE raise_salary(a_empno NUMBER, a_amt NUMBER) ;
+END ;
+/
+
+CREATE OR REPLACE PACKAGE BODY pkg_emp
+IS
+  PROCEDURE raise_salary(a_empno NUMBER, a_amt NUMBER)
+  -- 사원의 급여를 인상하는 프로시저
+  IS
+    -- 패키지 본체의 서브프로그램에서 자치 트랜잭션을 선언한다.
+    PRAGMA AUTONOMOUS_TRANSACTION ;
+  BEGIN
+    -- 급여를 인상한다.
+    IF a_amt IS NOT NULL
+    THEN
+      UPDATE emp
+         SET sal = sal + a_amt
+       WHERE empno = a_empno ;
+      COMMIT ; -- 트랜잭션을 COMMIT한다. 메인 트랜잭션은 COMMIT되지 않는다.
+    END IF ;
+  END ;
+END ;
+
+--===============================================================
+-- /* Example 20-27.익명 PLSQL에서 자치 트랜잭션의 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 익명 PL/SQL에서 자치 트랜잭션의 사용
+DECLARE
+	PRAGMA AUTONOMOUS_TRANSACTION; -- 자치 트랜잭션 선언
+	v_empno NUMBER := 7788;
+	v_amt NUMBER := 100;
+BEGIN
+	UPDATE emp
+		 SET sal = sal + v_amt
+	 WHERE empno = v_empno;
+	COMMIT;  -- 트랜잭션을 커밋한다. 메인 트랜잭션은 커밋되지 않는다.
+END;
+
+--===============================================================
+-- /* Example 20-28.함수 속성 DETERMINISTIC, PARALLEL_ENABLE, RESULT_CACHE 사용.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM 지시자의 위치는 저장 함수의 RETURN 절과 IS(AS) 사이다.
+CREATE OR REPLACE FUNCTION factorial(a_num PLS_INTEGER)
+RETURN NUMBER
+  DETERMINISTIC PARALLEL_ENABLE RESULT_CACHE
+IS
+BEGIN
+  IF a_num <= 1 THEN
+    RETURN 1 ;
+  ELSE
+    RETURN a_num * factorial(a_num-1) ;
+  END IF ;
+END ;
+
+--===============================================================
+-- /* Example 20-29.권한 모델 예제를 위한 tiger 계정 생성.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM ********************* 주의 **************************************
+REM 다음 코멘트 된 스크립트를 DBA 계정에서 실행하십시요.
+REM 스트립트 실행 시 계정 tiger는 삭제 후 재생성됩니다.
+REM 불의의 사고 방지를 위해 스크립트를 의도적으로 코멘트 처리했습니다
+REM SQL*Plus를 DBA 계정으로 실행한 후
+REM 문장을 Copy & Paste 방식으로 실행하십시요.
+REM *****************************************************************
+
+PAUSE
+
+/*
+--------------------------------------------------
+-- DBA 계정
+--------------------------------------------------
+REM DBA 계정에서 실행
+DROP USER tiger CASCADE ;
+CREATE USER tiger IDENTIFIED BY scott ;
+GRANT RESOURCE, CONNECT, CREATE SYNONYM TO tiger ;
+CREATE TABLE tiger.emp AS
+ SELECT *
+   FROM scott.emp
+  WHERE ROWNUM = 0 ;
+DROP ROLE scott_role ;
+CREATE ROLE scott_role ;
+GRANT SELECT ON scott.emp TO scott_role ;
+GRANT scott_role TO tiger ;
+*/
+
+--===============================================================
+-- /* Example 20-30.정의자 권한 함수 생성.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM ****** scott 계정에 접속 ******
+CONN scott/tiger
+
+PAUSE
+
+--------------------------------------------------
+-- scott 계정
+--------------------------------------------------
+
+REM scott 계정에서 실행
+REM 정의자 권한 함수 생성
+CREATE OR REPLACE FUNCTION scott.count_auth_definer RETURN PLS_INTEGER
+  AUTHID DEFINER  -- 정의자 권한을 사용하도록 명시
+AS
+  v_cnt PLS_INTEGER ;
+BEGIN
+  SELECT COUNT(*)
+    INTO v_cnt
+    FROM emp ;
+  RETURN v_cnt ;
+END ;
+
+--===============================================================
+-- /* Example 20-31.정의자 권한 함수 권한을 tiger에게 부여하고 SYNONYM 생성.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM scott 계정에서 실행
+REM 함수의 실행 권한을 tiger에게 부여
+GRANT EXECUTE ON scott.count_auth_definer TO tiger ;
+
+PAUSE
+
+REM ****** tiger 계정에 접속 ******
+CONN tiger/scott
+
+PAUSE
+
+--------------------------------------------------
+-- tiger 계정
+--------------------------------------------------
+REM tiger 계정에서 실행
+REM SYNONYM 생성
+DROP SYNONYM count_auth_definer ;
+CREATE SYNONYM count_auth_definer FOR scott.count_auth_definer ;
+
+--===============================================================
+-- /* Example 20-32.정의자 권한 함수의 실행 결과.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM ****** scott 계정에 접속 ******
+CONN scott/tiger
+
+PAUSE
+
+--------------------------------------------------
+-- scott 계정
+--------------------------------------------------
+
+REM scott 계정에서 실행
+REM 함수 count_auth_definer를 계정 scott에서 실행
+SELECT count_auth_definer() FROM dual ;
+
+PAUSE
+
+REM ****** tiger 계정에 접속 ******
+CONN tiger/scott
+
+PAUSE
+
+--------------------------------------------------
+-- tiger 계정
+--------------------------------------------------
+
+REM tiger 계정에서 실행
+REM 함수 count_auth_definer를 계정 tiger에서 실행
+SELECT count_auth_definer() FROM dual ;
+
+--===============================================================
+-- /* Example 20-33.실행자 권한 함수 생성.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM ****** scott 계정에 접속 ******
+CONN scott/tiger
+
+PAUSE
+
+--------------------------------------------------
+-- scott 계정
+--------------------------------------------------
+
+REM scott 계정에서 실행
+REM 실행자 권한 함수 생성
+CREATE OR REPLACE FUNCTION scott.count_auth_current_user RETURN PLS_INTEGER
+  AUTHID CURRENT_USER -- 실행자 권한
+AS
+  v_cnt PLS_INTEGER ;
+BEGIN
+  SELECT COUNT(*)
+    INTO v_cnt
+    FROM emp ;
+  RETURN v_cnt ;
+END ;
+
+--===============================================================
+-- /* Example 20-34.실행자 권한 함수 권한을 tiger에게 부여하고 SYNONYM 생성.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM scott 계정에서 실행
+REM 함수의 실행 권한을 tiger에게 부여
+GRANT EXECUTE ON scott.count_auth_current_user TO tiger ;
+
+PAUSE
+
+REM ****** tiger 계정에 접속 ******
+CONN tiger/scott
+
+PAUSE
+
+--------------------------------------------------
+-- tiger 계정
+--------------------------------------------------
+
+REM tiger 계정에서 실행
+REM SYNONYM 생성
+DROP SYNONYM count_auth_current_user ;
+CREATE SYNONYM count_auth_current_user FOR scott.count_auth_current_user;
+
+--===============================================================
+-- /* Example 20-35.실행자 권한 함수의 실행 결과.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM ****** scott 계정에 접속 ******
+CONN scott/tiger
+
+PAUSE
+
+--------------------------------------------------
+-- scott 계정
+--------------------------------------------------
+
+REM scott 계정에서 실행
+REM 함수 count_auth_current_user를 계정 scott에서 실행
+SELECT count_auth_current_user() FROM dual ;
+
+PAUSE
+
+REM ****** tiger 계정에 접속 ******
+CONN tiger/scott
+
+PAUSE
+
+--------------------------------------------------
+-- tiger 계정
+--------------------------------------------------
+
+REM tiger 계정에서 실행
+REM 함수 count_auth_current_user를 계정 tiger에서 실행
+SELECT count_auth_current_user() FROM dual ;
+
+--===============================================================
+-- /* Example 20-36.권한 모델별 결과 비교(scott 계정에서 실행).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM ****** scott 계정에 접속 ******
+CONN scott/tiger
+
+PAUSE
+
+--------------------------------------------------
+-- scott 계정
+--------------------------------------------------
+
+REM scott 계정에서 실행
+SELECT count_auth_definer()      AS 정의자권한
+     , count_auth_current_user() AS 생성자권한
+  FROM DUAL ;
+
+PAUSE
+
+--===============================================================
+-- /* Example 20-37.권한 모델별 결과 비교(tiger 계정에서 실행.SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM ****** tiger 계정에 접속 ******
+CONN tiger/scott
+
+PAUSE
+
+--------------------------------------------------
+-- tiger 계정
+--------------------------------------------------
+
+REM tiger 계정에서 실행
+SELECT count_auth_definer()      AS 정의자권한
+     , count_auth_current_user() AS 생성자권한
+  FROM DUAL ;
+
+--===============================================================
+-- /* Example 20-38.ROLE을 통해 부여 받은 권한(SQL은 정상 실행).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM ****** scott 계정에 접속 ******
+CONN scott/tiger
+
+PAUSE
+
+--------------------------------------------------
+-- scott 계정
+--------------------------------------------------
+
+REM 다음 SQL을 tiger 계정에서 실행하면 성공적으로 실행됨
+SELECT COUNT(*) FROM scott.emp;
+
+--===============================================================
+-- /* Example 20-39.ROLE을 통해 부여 받은 권한((저장 함수에 컴파일 오류 발생).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM ****** tiger 계정에 접속 ******
+CONN tiger/scott
+
+PAUSE
+
+--------------------------------------------------
+-- tiger 계정
+--------------------------------------------------
+
+REM 다음 프로그램을 tiger 계정에서 실행하면 실패함
+CREATE OR REPLACE FUNCTION tiger.count_auth_definer_tiger RETURN PLS_INTEGER
+AS
+  v_cnt PLS_INTEGER ;
+BEGIN
+  SELECT COUNT(*)
+    INTO v_cnt
+    FROM scott.emp ;
+  RETURN v_cnt ;
+END ;
+
+--===============================================================
+-- /* Example 20-40.해결 방법(1. ROLE을 통하지 않고 권한을 직접 부여).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+/*
+CREATE ROLE scott_role ;
+GRANT SELECT ON scott.emp TO scott_role ;
+GRANT scott_role TO tiger ;
+
+앞서 ROLE 로 권한을 줬던 부분 -> 직접 권한을 부여하면 해결된다.
+*/
+
+REM ************************************
+REM 첫 번째 해결 방법
+REM ROLE을 통하지 않고 권한을 직접 부여
+REM ************************************
+
+PAUSE
+
+REM ****** scott 계정에 접속 ******
+CONN scott/tiger
+
+PAUSE
+
+--------------------------------------------------
+-- scott 계정
+--------------------------------------------------
+
+REM scott 계정에서 다음 GRANT 문을 실행
+GRANT SELECT ON scott.emp TO tiger ;
+
+PAUSE
+
+REM ****** tiger 계정에 접속 ******
+CONN tiger/scott
+
+PAUSE
+
+--------------------------------------------------
+-- tiger 계정
+--------------------------------------------------
+
+REM tiger 계정에서 다시 실행하면 성공함
+CREATE OR REPLACE FUNCTION tiger.count_auth_definer_tiger RETURN PLS_INTEGER
+AS
+  v_cnt PLS_INTEGER ;
+BEGIN
+  SELECT COUNT(*)
+    INTO v_cnt
+    FROM scott.emp ;
+  RETURN v_cnt ;
+END ;
+
+--===============================================================
+-- /* Example 20-41.해결 방법(2. 서브프로그램을 실행자 권한으로 정의).SQL */
+--===============================================================
+SET ECHO ON
+SET TAB OFF
+SET SERVEROUTPUT ON
+
+REM ************************************
+REM 두 번째 해결 방법
+REM 서브프로그램을 실행자 권한으로 정의
+REM ************************************
+
+PAUSE
+
+REM ****** scott 계정에 접속 ******
+CONN scott/tiger
+
+PAUSE
+
+--------------------------------------------------
+-- scott 계정
+--------------------------------------------------
+
+REM scott 계정에서 다음 GRANT 문을 실행
+REVOKE SELECT ON scott.emp FROM tiger ;
+
+PAUSE
+
+REM ****** tiger 계정에 접속 ******
+CONN tiger/scott
+
+PAUSE
+
+--------------------------------------------------
+-- tiger 계정
+--------------------------------------------------
+
+REM tiger 계정에서 실행자 권한을 사용하는 다음 프로그램을 컴파일하면 성공함
+CREATE OR REPLACE FUNCTION tiger.count_auth_current_user_tiger
+  RETURN PLS_INTEGER
+  AUTHID CURRENT_USER -- 실행자 권한으로 정의한다.
+AS
+  v_cnt PLS_INTEGER ;
+BEGIN
+  -- 동적 SQL로 작성하여 컴파일 시 오류를 피한다.
+  -- 실행 시에는 실행자 권한이 사용되므로 scott.emp 테이블을 읽을 수 있다.
+  EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM scott.emp'
+          INTO v_cnt;
+  RETURN v_cnt ;
+END ;
+/
+
+SELECT count_auth_current_user_tiger() FROM DUAL ;
