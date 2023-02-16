@@ -116,51 +116,51 @@ BEGIN
 #### INSERT INTO TABLE SELECT 절로 변경하는 것이 속도/성능 측면에서 훨씬 유리함.
 * 위에 프로시저는 별도의 로직이 없기 때문임.
 ```sql
-	INSERT INTO TABLE_E
-    	WITH WITH_A
-      AS (
-        SELECT A.BBBBB
-           , B.AAAAA
-           , A.CCCCC
-           , A.DDDDD
-           , NVL(BB.TOWARD_RETURN, A.EEEEE) AS EEEEE
-           , C.DPD FFFFF
-           , A.HHHHH
-          FROM (
-            SELECT BBBBB
-               , CCCCC
-               , DDDDD
-               , EEEEE
-               , HHHHH
-              FROM TABLE_A
-             WHERE TRUNC(HHHHH) = TRUNC(SYSDATE - 1)
-            ) A
-          LEFT JOIN TABLE_B B 
-            ON A.BBBBB = B.BBBBB
-          LEFT JOIN TABLE_C C 
-            ON A.BBBBB = C.BBBBB
-           AND TRUNC(A.CCCCC) - 1 <= C.CTIME 
-           AND TRUNC(A.CCCCC) > C.CTIME
-          LEFT JOIN TABLE_D BB
-            ON A.EEEEE = BB.TOWARD
-        )
-      , WITH_B
-      AS (
-        SELECT A.*
-           , D.DPD GGGGG
-          FROM WITH_A A
-          LEFT JOIN TABLE_C D 
-          ON A.BBBBB = D.BBBBB
-           AND TRUNC(A.CCCCC) <= D.CTIME 
-           AND TRUNC(A.CCCCC) + 1 > D.CTIME 
-      )
-	SELECT T.AAAAA
-		 , T.BBBBB
-		 , TO_CHAR(T.CCCCC, 'YYYYMMDD') AS CCCCC
-		 , T.DDDDD
-		 , T.EEEEE
-		 , NVL(T.FFFFF, 0) AS FFFFF
-		 , NVL(T.GGGGG, 0) AS GGGGG
-		 , TO_CHAR(T.HHHHH, 'YYYYMMDD') AS HHHHH
-	  FROM WITH_B T;
+INSERT INTO TABLE_E
+	WITH WITH_A
+	AS (
+		SELECT A.BBBBB
+		   , B.AAAAA
+		   , A.CCCCC
+		   , A.DDDDD
+		   , NVL(BB.TOWARD_RETURN, A.EEEEE) AS EEEEE
+		   , C.DPD FFFFF
+		   , A.HHHHH
+		  FROM (
+			SELECT BBBBB
+			   , CCCCC
+			   , DDDDD
+			   , EEEEE
+			   , HHHHH
+			  FROM TABLE_A
+			 WHERE TRUNC(HHHHH) = TRUNC(SYSDATE - 1)
+			) A
+		  LEFT JOIN TABLE_B B 
+			ON A.BBBBB = B.BBBBB
+		  LEFT JOIN TABLE_C C 
+			ON A.BBBBB = C.BBBBB
+		   AND TRUNC(A.CCCCC) - 1 <= C.CTIME 
+		   AND TRUNC(A.CCCCC) > C.CTIME
+		  LEFT JOIN TABLE_D BB
+			ON A.EEEEE = BB.TOWARD
+	)
+	, WITH_B
+	AS (
+		SELECT A.*
+		   , D.DPD GGGGG
+		  FROM WITH_A A
+		  LEFT JOIN TABLE_C D 
+		  ON A.BBBBB = D.BBBBB
+		   AND TRUNC(A.CCCCC) <= D.CTIME 
+		   AND TRUNC(A.CCCCC) + 1 > D.CTIME 
+	)
+SELECT T.AAAAA
+	 , T.BBBBB
+	 , TO_CHAR(T.CCCCC, 'YYYYMMDD') AS CCCCC
+	 , T.DDDDD
+	 , T.EEEEE
+	 , NVL(T.FFFFF, 0) AS FFFFF
+	 , NVL(T.GGGGG, 0) AS GGGGG
+	 , TO_CHAR(T.HHHHH, 'YYYYMMDD') AS HHHHH
+  FROM WITH_B T;
 ```
